@@ -1,0 +1,50 @@
+
+
+.CurrentHeart, .CurrentOxygen, .Status
+{
+  border: 2px solid blue;
+  border-radius: 7px;
+  width: 200px;
+  height: 55px;
+  padding: 6px;
+}
+
+.CurrentHeart.Alarming, .CurrentOxygen.Alarming, .Status.Alarming
+{
+  border: 2px solid red;
+  background: red;
+}
+
+.InfoIcon
+{
+  margin-top: 4px;
+}
+
+.CurrentValueTxt
+{
+  font-size: 30px;
+  margin-left: 0.5em;
+}
+
+.CurrentValueUnits
+{
+  font-size: 20px;
+}
+
+.StatusTxt
+{
+  font-size: 15px;
+  margin-left: 0.5em;
+}
+
+.CurrentValueTime
+{
+  padding-left: 0.5em;
+  font-size: 8px;
+}
+
+.StatusTxt
+{
+  font-size: large;
+}
+
