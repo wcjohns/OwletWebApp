@@ -18,7 +18,7 @@ class OwletChart : public Wt::WContainerWidget
   
 public:
   OwletChart( const bool oxygen, const bool heartrate );
-  void updateData( const std::vector<std::tuple<std::string,int,int,int>> &data );
+  void updateData( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
   
   void setDateRange( const Wt::WDateTime &start, const Wt::WDateTime &end );
   

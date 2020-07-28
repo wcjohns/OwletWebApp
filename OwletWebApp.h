@@ -28,6 +28,13 @@ namespace Wt
   class WEnvironment;
 }//namespace Wt
 
+/**
+ - Add in a short time interval "ultra low" alarm
+ - Fix settings to be larger text on tablet; maybe make settings on popup
+ - Maybe add in a day/night alarming profile
+ - Start using Wt chart
+ - Make Alarmer smarter when setting new settins
+ */
 
 class OwletWebApp : public Wt::WApplication
 {
@@ -37,8 +44,11 @@ public:
   void toggleLines();
   
   
-  void updateDataToClient( const std::vector<std::tuple<std::string,int,int,int>> &data );
+  void updateDataToClient( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
+  void updateOxygenToClient( const Wt::WDateTime &utc, const int value );
+  void updateHeartRateToClient( const Wt::WDateTime &utc, const int value );
   void updateStatusToClient( const DbStatus status );
+  
   
   void startOxygenAlarm();
   void startLowHeartRateAlarm();
@@ -84,12 +94,12 @@ public:
   void highHeartrateSnoozed();
   void sockOffSnoozed();
   
-  static void processDataForAlarming( const std::vector<std::tuple<std::string,int,int,int>> &data );
+  static void processDataForAlarming( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
   static void processStatusForAlarming( const std::deque<DbStatus> &new_statuses );
   
   static void updateStatuses( const std::deque<DbStatus> &new_statuses );
   
-  static void updateData( const std::vector<std::tuple<std::string,int,int,int>> &data );
+  static void updateData( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
   
   
   void set_error( std::string msg );

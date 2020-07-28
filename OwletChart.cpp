@@ -3,6 +3,7 @@
 #include <string>
 
 #include <Wt/WDateTime.h>
+#include <Wt/WEnvironment.h>
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
 
@@ -12,6 +13,18 @@
 
 using namespace std;
 using namespace Wt;
+
+const char * const TO_CLIENT_DATETIME_FORMAT = "yyyy-MM-ddThh:mm:ss";
+
+std::string to_client_str( const Wt::WDateTime &utc )
+{
+  //const int nminutes_offsets = wApp->environment().timeZoneOffset().count();  //-420
+  //cout << "utc.date().day()=" << utc.date().day() << ", time=" << utc.time().hour() << ":" << utc.time().minute() << ":" << utc.time().second() << endl;
+  //cout << "nminutes_offsets=" << nminutes_offsets << endl;
+  //const auto localtime = utc.addSecs( 60 * nminutes_offsets );
+  //return localtime.toString(TO_CLIENT_DATETIME_FORMAT,false).toUTF8();
+  return utc.toString(TO_CLIENT_DATETIME_FORMAT,false).toUTF8();
+}
 
 
 OwletChart::OwletChart( const bool oxygen, const bool heartrate )
@@ -29,7 +42,7 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
   //  instances of when we have both oxygen and heartrate.
   //  I couldnt get all the UTC->local->UTC working right, so we'll
   //  just use strings for datetime
-  map<WDateTime,tuple<string,int,int,int>> data;
+  map<WDateTime,tuple<WDateTime,int,int,int>> data;
   
   {//begin lock on g_data_mutex
     std::lock_guard<mutex> data_lock( g_data_mutex );
@@ -40,13 +53,12 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
       {
         try
         {
-          const string &timestr = get<0>(v);
-          const auto date = WDateTime::fromString(timestr,"yyyy-MM-ddThh:mm:ssZ");
+          const WDateTime &date = get<0>(v);
           if( date.isNull() || !date.isValid() )
-            throw runtime_error( "Failed to convert oxygen time '" + timestr + "'" );
+            throw runtime_error( "Oxygen time invalid" );
           
           auto &val = data[date];
-          get<0>(val) = timestr;
+          get<0>(val) = date;
           get<1>(val) = get<1>(v);
           get<3>(val) = get<2>(v);
         }catch( std::exception &e )
@@ -60,13 +72,12 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
     {
       for( const auto &v : g_heartrate_values )
       {
-        const string &timestr = get<0>(v);
-        const auto date = WDateTime::fromString(timestr,"yyyy-MM-ddThh:mm:ssZ");
+        const auto date = get<0>(v);
         if( date.isNull() || !date.isValid() )
-          throw runtime_error( "Failed to convert heartrate time '" + timestr + "'" );
+          throw runtime_error( "Heartrate time invalid" );
         
         auto &val = data[date];
-        get<0>(val) = timestr;
+        get<0>(val) = date;
         get<2>(val) = get<1>(v);
         get<3>(val) = get<2>(v);
       }//for( const auto &v : g_heartrate_values )
@@ -78,17 +89,17 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
   datastrm << "[";
   for( const auto &val : data )
   {
-    const string &time = get<0>(val.second);
+    const WDateTime &datetime = get<0>(val.second);
     const int o2 = get<1>(val.second);
     const int heart = get<2>(val.second);
     
     if( (!m_heartrate && !o2) || (!m_oxygen && !heart) )  //shouldnt be necassary, but JIC
       continue;
     
-    //datastrm << "+\"" << val.first.toString("yyyy-MM-dd hh:mm:ss",false).toUTF8() << ",";
     if( iter++ )
       datastrm << ",";
-    datastrm << "[new Date(\"" << time << "\")";
+    const string utc_date_str = to_client_str(datetime);
+    datastrm << "[new Date(\"" << utc_date_str << "\")";
     if( m_oxygen )
       datastrm << "," << (o2 ? o2 : m_last_oxygen);
     if( m_heartrate )
@@ -163,7 +174,7 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
 }//Dygraph()
 
 
-void OwletChart::updateData( const vector<tuple<string,int,int,int>> &data )
+void OwletChart::updateData( const vector<tuple<Wt::WDateTime,int,int,int>> &data )
 {
   size_t nentries = 0;
   WStringStream datastrm;
@@ -171,14 +182,15 @@ void OwletChart::updateData( const vector<tuple<string,int,int,int>> &data )
   
   for( const auto &val : data )
   {
-    const string &datetime = get<0>(val);
+    const WDateTime &datetime = get<0>(val);
     const int o2 = get<1>(val);
     const int heart = get<2>(val);
     //const int movement = get<3>(val.second);
     
     if( (m_heartrate && heart) || (m_oxygen && o2) )
     {
-      datastrm << jsRef() << ".data.push([new Date(\"" << datetime << "\")";
+      const string utc_date_str = to_client_str(datetime);
+      datastrm << jsRef() << ".data.push([new Date(\"" << utc_date_str << "\")";
       if( m_oxygen )
         datastrm << "," << (o2 ? o2 : m_last_oxygen);
       if( m_heartrate )
@@ -190,8 +202,8 @@ void OwletChart::updateData( const vector<tuple<string,int,int,int>> &data )
     m_last_oxygen = (o2 ? o2 : m_last_oxygen);
     m_last_heartrate = (heart ? heart : m_last_heartrate);
     
-    last_02 = o2 ? WDateTime::fromString(datetime,"yyyy-MM-ddThh:mm:ssZ") : last_02;
-    last_heartrate = heart ? WDateTime::fromString(datetime,"yyyy-MM-ddThh:mm:ssZ") : last_heartrate;
+    last_02 = o2 ? datetime : last_02;
+    last_heartrate = heart ? datetime : last_heartrate;
   }//for( const auto &val : data )
   
   if( !nentries )
@@ -209,8 +221,8 @@ void OwletChart::setDateRange( const Wt::WDateTime &start, const Wt::WDateTime &
     throw runtime_error( "OwletChart::setDateRange(): invalid input" );
   
   
-  const string startstr = start.toString("yyyy-MM-ddThh:mm:ss",false).toUTF8() + "Z";
-  const string endstr = start.toString("yyyy-MM-ddThh:mm:ss",false).toUTF8() + "Z";
+  const string startstr = to_client_str(start);
+  const string endstr = to_client_str(end);
   
   //const string js = jsRef() + ".chart.updateOptions({ axes: { x: { "
   //           "valueRange: [new Date(\"" + startstr + "\"),new Date(\"" + endstr + "\")] } } });";

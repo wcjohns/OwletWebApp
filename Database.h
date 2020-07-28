@@ -27,8 +27,8 @@ extern std::condition_variable g_update_cv;
 //We will keep some data from the DB in memmory for when new sessions are
 //  started - memorry isnt an issue with this data, and its just easier for now
 extern std::mutex g_data_mutex;
-extern std::deque<std::tuple<std::string,int,bool>> g_oxygen_values;
-extern std::deque<std::tuple<std::string,int,bool>> g_heartrate_values;  //<time as string,value,moving>
+extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;
+extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<time as string,value,moving>
 extern std::deque<DbStatus> g_statuses;
 
 //  Each entry probably takes less than 50 bytes, so 200k entries is like 10 MB.
@@ -37,13 +37,18 @@ const size_t g_max_data_entries = 200000;
 
 void look_for_db_changes();
 
+/** Converts from the string formats we have in the UTC fields in the database, to a WDateTime.
+ Not extensively tested, and I still havent investigated why there are a few different date/time formats in the database.
+ */
+Wt::WDateTime utcDateTimeFromStr( const std::string &dt );
+
+
 //A class to store heartrate or oxygenation levels in
 class DbValue
 {
 public:
-  //The local->UTC-->local->... translations are getting messed up somewhere, so we'll just keep the
-  //  dates as a string for now since this works correctly (but code still works file if you switch
-  //  to using WDateTime based members).
+  //The database -> WDateTime doesnt seem to work correctly, so we will read date/time as string
+  //  from database, and then use #utcDateTimeFromStr to convert to a WDateTime.
   //Wt::WDateTime local_date;
   //Wt::WDateTime utc_date;
   std::string local_date;
@@ -71,6 +76,8 @@ public:
 class DbStatus
 {
 public:
+  //Wt::WDateTime local_date;
+  //Wt::WDateTime utc_date;
   std::string local_date;
   std::string utc_date;
   

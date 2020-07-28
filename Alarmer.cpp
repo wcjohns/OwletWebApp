@@ -19,7 +19,7 @@ Alarmer::Alarmer()
   m_snooze_seconds = 300;
   m_lessthan = true;
   
-  m_enabled = false;
+  m_enabled = true;
   m_alarm_notified = false;
   m_deviation_start_time = WDateTime();
   
@@ -113,6 +113,9 @@ void Alarmer::snooze_alarm()
     return;
   }
   
+  if( !m_enabled )
+    return;
+  
   auto server = WServer::instance();
   assert( server );
   WIOService &service = server->ioService();
@@ -141,6 +144,9 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
   std::unique_lock<std::mutex> lock( m_mutex );
   
   if( !value )
+    return;
+  
+  if( !m_enabled )
     return;
   
   const bool outside_range = (m_lessthan ? (value <= m_threshold) : (value >= m_threshold));

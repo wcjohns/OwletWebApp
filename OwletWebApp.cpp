@@ -256,6 +256,55 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   else if( sm_sock_off_alarm.currently_snoozed() )
     snoozeSockOffAlarm();
   
+  
+  //Now lets see if we have fairly recent values and status, and if so, update the users screen
+  unique_ptr<DbStatus> latest_status;
+  int last_oxygen = 0, last_heartrate = 0;
+  Wt::WDateTime last_oxygen_time, last_heartrate_time;
+  
+  {//begin lock on g_data_mutex
+    std::lock_guard<mutex> data_lock( g_data_mutex );
+    const auto currentUtc = WDateTime::currentDateTime();
+    if( g_statuses.size()  )
+    {
+      const auto last_utc = utcDateTimeFromStr(g_statuses.back().utc_date);
+      if( abs(last_utc.secsTo(currentUtc)) < 10*60 )
+        latest_status = make_unique<DbStatus>( g_statuses.back() );
+    }
+      
+    if( g_oxygen_values.size() )
+    {
+      const auto last_utc = get<0>( g_oxygen_values.back() );
+      if( abs(last_utc.secsTo(currentUtc)) < 2*60 )
+      {
+        last_oxygen_time = last_utc;
+        last_oxygen = get<1>( g_oxygen_values.back() );
+      }
+    }//if( g_oxygen_values.size() )
+    
+    
+    if( g_heartrate_values.size() )
+    {
+      const auto last_utc = get<0>( g_heartrate_values.back() );
+      if( abs(last_utc.secsTo(currentUtc)) < 2*60 )
+      {
+        last_heartrate_time = last_utc;
+        last_heartrate = get<1>( g_heartrate_values.back() );
+      }
+    }//if( g_oxygen_values.size() )
+  }//end lock on g_data_mutex
+  
+  if( latest_status )
+    updateStatusToClient( *latest_status );
+  
+  if( last_oxygen_time.isValid() && last_oxygen )
+    updateOxygenToClient( last_oxygen_time, last_oxygen );
+  
+  if( last_heartrate_time.isValid() && last_heartrate )
+    updateHeartRateToClient( last_heartrate_time, last_heartrate );
+  
+  
+  
   // \TODO: only do this next call if audio cant auto-play
   WTimer::singleShot( std::chrono::milliseconds(1500), this, &OwletWebApp::audioPlayPopup );
 }//OwletWebApp constructor
@@ -270,7 +319,27 @@ void OwletWebApp::toggleLines()
 }
 
 
-void OwletWebApp::updateDataToClient( const vector<tuple<string,int,int,int>> &data )
+void OwletWebApp::updateOxygenToClient( const Wt::WDateTime &last_oxygen_time, const int last_oxygen )
+{
+  m_current_oxygen->setText( std::to_string(last_oxygen) + "" );
+  const auto now = WDateTime::currentDateTime();
+  auto localdate = last_oxygen_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
+  const char *format = (now.date() == last_oxygen_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
+  m_current_oxygen_time->setText( localdate.toString(format) );
+}//void updateOxygenToClient( const Wt::WDateTime &utc, const int value, const int moving )
+
+
+void OwletWebApp::updateHeartRateToClient( const Wt::WDateTime &last_heartrate_time, const int last_heart )
+{
+  m_current_heartrate->setText( std::to_string(last_heart) + "" );
+  const auto now = WDateTime::currentDateTime();
+  auto localdate = last_heartrate_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
+  const char *format = (now.date() == last_heartrate_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
+  m_current_heartrate_time->setText( localdate.toString(format) );
+}//void updateHeartRateToClient( const Wt::WDateTime &utc, const int value, const int moving )
+
+
+void OwletWebApp::updateDataToClient( const vector<tuple<Wt::WDateTime,int,int,int>> &data )
 {
   m_chart->updateData( data );
   
@@ -278,12 +347,10 @@ void OwletWebApp::updateDataToClient( const vector<tuple<string,int,int,int>> &d
   WDateTime last_oxygen_time, last_heartrate_time;
   for( const auto &val : data )
   {
-    const string &datetimestr = get<0>(val);
+    const WDateTime &datetime = get<0>(val);
     const int o2 = get<1>(val);
     const int heart = get<2>(val);
     //const int movement = get<3>(val.second);
-    
-    const WDateTime datetime = WDateTime::fromString(datetimestr,"yyyy-MM-ddThh:mm:ssZ");
     
     assert( datetime.isValid() & !datetime.isNull() );
     
@@ -294,23 +361,11 @@ void OwletWebApp::updateDataToClient( const vector<tuple<string,int,int,int>> &d
     last_heartrate_time = heart ? datetime : last_heartrate_time;
   }//for( const auto &val : data )
   
-  if( last_oxygen_time.isValid() && !last_oxygen_time.isNull() && last_oxygen )
-  {
-    m_current_oxygen->setText( std::to_string(last_oxygen) + "" );
-    const auto now = WDateTime::currentDateTime();
-    auto localdate = last_oxygen_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
-    const char *format = (now.date() == last_oxygen_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
-    m_current_oxygen_time->setText( localdate.toString(format) );
-  }
+  if( last_oxygen_time.isValid() && last_oxygen )
+    updateOxygenToClient(last_oxygen_time, last_oxygen );
   
   if( last_heartrate_time.isValid() && !last_heartrate_time.isNull() && last_heart )
-  {
-    m_current_heartrate->setText( std::to_string(last_heart) + "" );
-    const auto now = WDateTime::currentDateTime();
-    auto localdate = last_heartrate_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
-    const char *format = (now.date() == last_heartrate_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
-    m_current_heartrate_time->setText( localdate.toString(format) );
-  }
+    updateHeartRateToClient( last_heartrate_time, last_heart );
 }//void updateDataToClient( const vector<tuple<string,int,int,int>> &data )
 
 
@@ -349,15 +404,7 @@ void OwletWebApp::updateStatusToClient( const DbStatus status )
   
   m_status->setText( txt );
   
-  string datetimestr = status.utc_date;
-  WDateTime datetime = WDateTime::fromString(datetimestr,"yyyy-MM-ddThh:mm:ssZ");
-  if( !datetime.isValid() || datetime.isNull() )
-  {
-    const auto ppos = datetimestr.find_last_of('.');
-    if( ppos != string::npos )
-      datetimestr = datetimestr.substr(0,ppos);
-    datetime = WDateTime::fromString(datetimestr,"yyyy-MM-dd hh:mm:ss");
-  }
+  WDateTime datetime = utcDateTimeFromStr(status.utc_date);
   assert( datetime.isValid() && !datetime.isNull() );
   
   const auto now = WDateTime::currentDateTime();
@@ -753,15 +800,14 @@ void OwletWebApp::sockOffSnoozed()
 }//void highHeartrateSnoozed()
 
 
-void OwletWebApp::processDataForAlarming( const vector<tuple<string,int,int,int>> &data )
+void OwletWebApp::processDataForAlarming( const vector<tuple<Wt::WDateTime,int,int,int>> &data )
 {
   for( size_t i = 0; i < data.size(); ++i )
   {
     const auto &val = data[i];
     const bool last_data = ((i+1) == data.size());
     
-    const string &datetimestr = get<0>(val);
-    const WDateTime datetime = WDateTime::fromString(datetimestr,"yyyy-MM-ddThh:mm:ssZ");
+    const WDateTime &datetime = get<0>(val);
     assert( datetime.isValid() & !datetime.isNull() );
     
     const int oxygen = get<1>(val);
@@ -780,16 +826,8 @@ void OwletWebApp::processStatusForAlarming( const std::deque<DbStatus> &data )
   {
     const auto &val = data[i];
     const bool last_data = ((i+1) == data.size());
-    
-    //const string &datetimestr = val.utc_date;
-    //const WDateTime datetime = WDateTime::fromString(datetimestr,"yyyy-MM-dd hh:mm:ss");
-    
-    string datetimestr = val.utc_date;
-    auto ppos = datetimestr.find_last_of('.');
-    if( ppos != string::npos )
-      datetimestr = datetimestr.substr(0,ppos);
-    const WDateTime datetime = WDateTime::fromString(datetimestr,"yyyy-MM-dd hh:mm:ss");
-    
+      
+    const WDateTime &datetime = utcDateTimeFromStr(val.utc_date);
     assert( datetime.isValid() & !datetime.isNull() );
     
     sm_sock_off_alarm.processData( datetime, val.sock_off, last_data );
@@ -828,7 +866,7 @@ void OwletWebApp::updateStatuses( const deque<DbStatus> &new_statuses )
 
 
 
-void OwletWebApp::updateData( const vector<tuple<string,int,int,int>> &data )
+void OwletWebApp::updateData( const vector<tuple<Wt::WDateTime,int,int,int>> &data )
 {
   auto server = WServer::instance();
   if( !server )
@@ -948,7 +986,7 @@ void OwletWebApp::init_globals()
   sm_sock_off_alarm.m_threshold = 1;
   sm_sock_off_alarm.m_deviation_seconds = SockOffSeconds;
   sm_sock_off_alarm.m_snooze_seconds = SnoozeSeconds;
-  sm_sock_off_alarm.m_lessthan = false;
+  sm_sock_off_alarm.m_lessthan = true;
   sm_sock_off_alarm.m_start_alarm = [](){ OwletWebApp::start_sock_off_alarms(); };
   sm_sock_off_alarm.m_stop_alarm = [](){ OwletWebApp::stop_sock_off_alarms(); };
   sm_sock_off_alarm.set_enabled( SockOffSeconds>=0 );

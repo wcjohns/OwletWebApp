@@ -15,6 +15,24 @@ using namespace Wt;
 namespace dbo = Wt::Dbo;
 
 
+Wt::WDateTime utcDateTimeFromStr( const string &str )
+{
+  Wt::WDateTime utc = WDateTime::fromString(str, "yyyy-MM-ddThh:mm:ssZ");
+  if( !utc.isValid() )
+    utc = WDateTime::fromString(str, "yyyy-MM-dd hh:mm:ss");
+  if( !utc.isValid() )
+  {
+    const auto pos = str.find(".");  //
+    if( pos != string::npos )
+      utc = WDateTime::fromString(str.substr(0,pos), "yyyy-MM-dd hh:mm:ss");
+  }
+  
+  //cout << str << " --> utc.date().day()=" << utc.date().day() << ", time=" << utc.time().hour()
+  //     << ":" << utc.time().minute() << ":" << utc.time().second() << endl;
+  
+  return utc;
+}//Wt::WDateTime utcDateTimeFromStr( const string &str )
+
 bool g_keep_watching_db = true;
 std::mutex g_watch_db_mutex;
 std::condition_variable g_update_cv;
@@ -24,8 +42,8 @@ std::condition_variable g_update_cv;
 //We will keep some data from the DB in memmory for when new sessions are
 //  started - memorry isnt an issue with this data, and its just easier for now
 std::mutex g_data_mutex;
-std::deque<std::tuple<std::string,int,bool>> g_oxygen_values;
-std::deque<std::tuple<std::string,int,bool>> g_heartrate_values;  //<time as string,value,moving>
+std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;
+std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<time as string,value,moving>
 std::deque<DbStatus> g_statuses;
 
 
@@ -115,8 +133,8 @@ void look_for_db_changes()
     }
     
     
-    //deque<tuple<WDateTime,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
-    deque<tuple<string,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
+    deque<tuple<WDateTime,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
+    //deque<tuple<string,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
     deque<DbStatus> new_statuses;
     
     try
@@ -133,10 +151,14 @@ void look_for_db_changes()
       for( const auto &point : new_points )
       {
         if( iteration_num )
-          cout << "New Oxygen Point " << point->local_date /*.toString("yyyy-MM-dd hh:mm:ss",false)*/ << ": "
+        {
+          const auto local_date_str = point->local_date;
+          cout << "New Oxygen Point " << local_date_str << ": "
                << point->value << ", movement=" << point->movement << endl;
+        }
+        const WDateTime utc = utcDateTimeFromStr(point->utc_date);
         last_oxygen_index = std::max( last_oxygen_index, static_cast<int>(point.id()) );
-        new_oxygen.push_front( {point->utc_date,point->value,static_cast<bool>(point->movement)} );
+        new_oxygen.push_front( {utc,point->value,static_cast<bool>(point->movement)} );
       }
     }catch( dbo::Exception &e )
     {
@@ -154,10 +176,16 @@ void look_for_db_changes()
       for( const auto &point : new_points )
       {
         if( iteration_num )
-          cout << "New HeartRate Point " << point->local_date /*.toString("yyyy-MM-dd hh:mm:ss",false)*/ << ": "
+        {
+          const auto &local_date_str = point->local_date;
+          cout << "New HeartRate Point " << local_date_str << ": "
                << point->value << ", movement=" << point->movement << endl;
+        }//if( iteration_num )
+        
+        const WDateTime utc = utcDateTimeFromStr(point->utc_date);
+        
         last_heartrate_index = std::max( last_heartrate_index, static_cast<int>(point.id()) );
-        new_heartrate.push_front( {point->utc_date,point->value,static_cast<bool>(point->movement)} );
+        new_heartrate.push_front( {utc,point->value,static_cast<bool>(point->movement)} );
       }
     }catch( dbo::Exception &e )
     {
@@ -176,7 +204,7 @@ void look_for_db_changes()
       for( const auto &point : new_points )
       {
         if( iteration_num )
-          cout << "New Status Point " << point->local_date /*.toString("yyyy-MM-dd hh:mm:ss",false)*/ << ": "
+          cout << "New Status Point " << point->local_date << ": "
                << ", movement=" << point->movement
                << ", sock_off=" << point->sock_off
                << ", base_station=" << point->base_station
@@ -208,18 +236,17 @@ void look_for_db_changes()
     }//end lock on g_data_mutex
     
     
-    map<WDateTime,tuple<string,int,int,int>> data;
+    map<WDateTime,tuple<WDateTime,int,int,int>> data;
     for( const auto &v : new_oxygen )
     {
       try
       {
-        const string &timestr = get<0>(v);
-        const auto date = WDateTime::fromString(timestr,"yyyy-MM-ddThh:mm:ssZ");
+        const WDateTime &date = get<0>(v);
         if( date.isNull() || !date.isValid() )
-          throw runtime_error( "Failed to convert '" + timestr + "'" );
+          throw runtime_error( "Failed to convert '" + date.toString("yyyy-MM-dd hh:mm:ss",false).toUTF8() + "'" );
         
         auto &val = data[date];
-        get<0>(val) = timestr;
+        get<0>(val) = date;
         get<1>(val) = get<1>(v);
         get<3>(val) = get<2>(v);
       }catch( std::exception &e )
@@ -232,13 +259,12 @@ void look_for_db_changes()
     {
       try
       {
-        const string &timestr = get<0>(v);
-        const auto date = WDateTime::fromString(get<0>(v),"yyyy-MM-ddThh:mm:ssZ");
+        const WDateTime &date = get<0>(v);
         if( date.isNull() || !date.isValid() )
-          throw runtime_error( "Failed to convert '" + timestr + "'" );
+          throw runtime_error( "Invalid heartrate time" );
         
         auto &val = data[date];
-        get<0>(val) = timestr;
+        get<0>(val) = date;
         get<2>(val) = get<1>(v);
         get<3>(val) = get<2>(v);
       }catch( std::exception &e )
@@ -247,7 +273,7 @@ void look_for_db_changes()
       }
     }//for( const auto &v : new_heartrate )
   
-    vector<tuple<string,int,int,int>> sorted_data;
+    vector<tuple<WDateTime,int,int,int>> sorted_data;
     sorted_data.reserve( data.size() );
     for( auto &vp : data )
       sorted_data.push_back( std::move(vp.second) );

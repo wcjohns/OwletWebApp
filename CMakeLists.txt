@@ -29,7 +29,7 @@ if("${CMAKE_SYSTEM}" MATCHES "Linux" AND NOT ANDROID)
   set(OPENSSL_USE_STATIC_LIBS TRUE)
   find_package(OpenSSL REQUIRED)
   
-  target_link_libraries( OwletWebApp.wt PUBLIC ${RT_LIB} OpenSSL::SSL OpenSSL::Crypto ${CMAKE_DL_LIBS} )
+  target_link_libraries( OwletWebApp.wt PUBLIC ${RT_LIB} OpenSSL::SSL OpenSSL::Crypto ${CMAKE_DL_LIBS} -static-libgcc -static-libstdc++ )
 endif()
 
 if(APPLE AND NOT IOS)
