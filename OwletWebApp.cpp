@@ -104,6 +104,9 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   
   m_chart = m_layout->addWidget( std::make_unique<OwletChart>(true, false), 1, 0, 1, 3 );
   
+  // \TODO: set height based off actual screen size
+  //m_chart->setMaximumSize( WLength::Auto, WLength(400,Wt::LengthUnit::Pixel) );
+  
   auto showoptions = m_layout->addWidget( make_unique<WContainerWidget>(), 2, 0, 1, 3 );
   m_show_oxygen = showoptions->addWidget( make_unique<WCheckBox>("Oxygen") );
   m_show_oxygen->setInline( false );
@@ -892,6 +895,31 @@ void OwletWebApp::updateData( const vector<tuple<Wt::WDateTime,int,int,int>> &da
   
   processDataForAlarming( data );
 }//void updateData( const vector<tuple<string,int,int,int>> &data )
+
+
+void OwletWebApp::addedData( const size_t num_readings_before, const size_t num_readings_after )
+{
+  assert( num_readings_before < num_readings_after );
+  
+  auto server = WServer::instance();
+  if( !server )
+  {
+    cerr << "OwletWebApp::addedData(): failed to get WServer - returning" << endl;
+    return;
+  }
+
+  server->postAll( [=](){
+    auto app = dynamic_cast<OwletWebApp *>( WApplication::instance() );
+    if( !app )
+    {
+      cerr << "Got dead instance?" << endl;
+      return;
+    }
+      
+    app->m_chart->addedData( num_readings_before, num_readings_after );
+    app->triggerUpdate();
+  });
+}//void addedData( const size_t num_readings_before, const size_t num_readings_after )
 
 
 void OwletWebApp::set_error( string msg )

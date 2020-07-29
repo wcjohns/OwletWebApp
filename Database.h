@@ -22,6 +22,29 @@ extern bool g_keep_watching_db;
 extern std::mutex g_watch_db_mutex;
 extern std::condition_variable g_update_cv;
 
+/** Simple struct to hold information from readings.
+ For all fields except for time, a value of -1 indicates no data for that field, for that time.
+ 
+ \ToDo: maybe use bitfields to compress data a little more.
+ */
+struct OwletReading
+{
+  /** The UTC time of this data. */
+  Wt::WDateTime utc_time;
+  int8_t oxygen;
+  int16_t heartrate;
+  int8_t movement;
+  int8_t sock_off;
+  int8_t base_station;
+  int8_t sock_connection;
+  int8_t battery;
+  
+  OwletReading()
+  : utc_time(), oxygen(-1), heartrate(-1), movement(-1),
+    sock_off(-1), base_station(-1), sock_connection(-1), battery(-1)
+  {
+  }
+};//struct OwletReading
 
 
 //We will keep some data from the DB in memmory for when new sessions are
@@ -29,6 +52,7 @@ extern std::condition_variable g_update_cv;
 extern std::mutex g_data_mutex;
 extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;
 extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<time as string,value,moving>
+extern std::deque<OwletReading> g_readings;
 extern std::deque<DbStatus> g_statuses;
 
 //  Each entry probably takes less than 50 bytes, so 200k entries is like 10 MB.

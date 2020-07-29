@@ -44,6 +44,7 @@ std::condition_variable g_update_cv;
 std::mutex g_data_mutex;
 std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;
 std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<time as string,value,moving>
+std::deque<OwletReading> g_readings;
 std::deque<DbStatus> g_statuses;
 
 
@@ -136,6 +137,8 @@ void look_for_db_changes()
     deque<tuple<WDateTime,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
     //deque<tuple<string,int,bool>> new_oxygen, new_heartrate;  //<time,value,moving>"
     deque<DbStatus> new_statuses;
+    std::map<WDateTime,OwletReading> new_readings;
+    
     
     try
     {
@@ -159,6 +162,13 @@ void look_for_db_changes()
         const WDateTime utc = utcDateTimeFromStr(point->utc_date);
         last_oxygen_index = std::max( last_oxygen_index, static_cast<int>(point.id()) );
         new_oxygen.push_front( {utc,point->value,static_cast<bool>(point->movement)} );
+        
+        auto pos = new_readings.find(utc);
+        if( pos == end(new_readings) )
+          pos = new_readings.insert( {utc,OwletReading{}} ).first;
+        pos->second.utc_time = utc;
+        pos->second.oxygen = point->value;
+        pos->second.movement = point->movement;
       }
     }catch( dbo::Exception &e )
     {
@@ -186,6 +196,13 @@ void look_for_db_changes()
         
         last_heartrate_index = std::max( last_heartrate_index, static_cast<int>(point.id()) );
         new_heartrate.push_front( {utc,point->value,static_cast<bool>(point->movement)} );
+        
+        auto pos = new_readings.find(utc);
+        if( pos == end(new_readings) )
+          pos = new_readings.insert( {utc,OwletReading{}} ).first;
+        pos->second.utc_time = utc;
+        pos->second.heartrate = point->value;
+        pos->second.movement = point->movement;
       }
     }catch( dbo::Exception &e )
     {
@@ -213,6 +230,17 @@ void look_for_db_changes()
                << endl;
         last_status_index = std::max( last_status_index, static_cast<int>(point.id()) );
         new_statuses.push_front( *point );
+        
+        const WDateTime utc = utcDateTimeFromStr(point->utc_date);
+        auto pos = new_readings.find(utc);
+        if( pos == end(new_readings) )
+          pos = new_readings.insert( {utc,OwletReading{}} ).first;
+        pos->second.utc_time        = utc;
+        pos->second.movement        = point->movement;
+        pos->second.sock_off        = point->sock_off;
+        pos->second.base_station    = point->base_station;
+        pos->second.sock_connection = point->sock_connection;
+        pos->second.battery         = point->battery;
       }//for( const auto &point : new_points )
     }catch( dbo::Exception &e )
     {
@@ -220,12 +248,17 @@ void look_for_db_changes()
     }
     
     //cout << "Got " << new_oxygen.size() << " new oxygens" << endl;
-    
+    size_t num_readings_before = 0, num_readings_after = 0;
     {//begin lock on g_data_mutex
       std::lock_guard<mutex> data_lock( g_data_mutex );
       g_oxygen_values.insert( end(g_oxygen_values), begin(new_oxygen), end(new_oxygen) );
       g_heartrate_values.insert( end(g_heartrate_values), begin(new_heartrate), end(new_heartrate) );
       g_statuses.insert( end(g_statuses), begin(new_statuses), end(new_statuses) );
+      
+      num_readings_before = g_readings.size();
+      for( const auto &iter : new_readings )
+        g_readings.push_back( iter.second );
+      num_readings_after = g_readings.size();
       
       if( g_oxygen_values.size() > (g_max_data_entries+100) )
         g_oxygen_values.erase(begin(g_oxygen_values), begin(g_oxygen_values)+g_max_data_entries );
@@ -233,7 +266,14 @@ void look_for_db_changes()
         g_heartrate_values.erase(begin(g_heartrate_values), begin(g_heartrate_values)+g_max_data_entries );
       if( g_statuses.size() > (g_max_data_entries+100) )
         g_statuses.erase(begin(g_statuses), begin(g_statuses)+g_max_data_entries );
+      
+      // \TODO: implement some sort of condition variable based mechanism to delete old points.
+      //if( g_readings.size() > (g_max_data_entries+100) )
+      //  g_readings.erase(begin(g_readings), begin(g_readings)+g_max_data_entries );
     }//end lock on g_data_mutex
+    
+    if( num_readings_before != num_readings_after )
+      OwletWebApp::addedData( num_readings_before, num_readings_after );
     
     
     map<WDateTime,tuple<WDateTime,int,int,int>> data;

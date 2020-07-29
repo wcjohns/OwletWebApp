@@ -101,6 +101,8 @@ public:
   
   static void updateData( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
   
+  static void addedData( const size_t num_readings_before, const size_t num_readings_after );
+  
   
   void set_error( std::string msg );
   
