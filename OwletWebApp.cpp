@@ -5,7 +5,6 @@
 #include <Wt/WText.h>
 #include <Wt/WImage.h>
 #include <Wt/WAudio.h>
-#include <Wt/WTimer.h>
 #include <Wt/WLabel.h>
 #include <Wt/WServer.h>
 #include <Wt/WSpinBox.h>
@@ -16,7 +15,6 @@
 #include <Wt/WMessageBox.h>
 #include <Wt/WGridLayout.h>
 #include <Wt/WPushButton.h>
-//#include <Wt/WMediaPlayer.h>
 #include <Wt/WEnvironment.h>
 #include <Wt/WApplication.h>
 #include <Wt/WStringStream.h>
@@ -24,12 +22,14 @@
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 
-
-#include "OwletWebApp.h"
+#include "Settings.h"
 #include "OwletChart.h"
+#include "OwletWebApp.h"
 
 using namespace std;
 using namespace Wt;
+
+#define INLINE_JAVASCRIPT(...) #__VA_ARGS__
 
 std::mutex OwletWebApp::sm_ini_mutex;
 boost::property_tree::ptree OwletWebApp::sm_ini;
@@ -46,24 +46,63 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   m_oxygen_mb( nullptr ),
   m_low_heartrate_mb( nullptr ),
   m_high_heartrate_mb( nullptr ),
-  m_sock_off_mb( nullptr )
+  m_sock_off_mb( nullptr ),
+  m_settings( nullptr )
 {
   enableUpdates();
   setTitle("OwletWebApp");
   
-  //auto theme = make_shared<WBootstrapTheme>();
-  //theme->setVersion( BootstrapVersion::v3 );
-  //theme->setFormControlStyleEnabled( false );
-  //theme->setResponsive( false );
-  //setTheme( theme );
+  auto theme = make_shared<WBootstrapTheme>();
+  theme->setVersion( BootstrapVersion::v3 );
+  theme->setFormControlStyleEnabled( false );
+  theme->setResponsive( false );
+  setTheme( theme );
   
   //setCssTheme("polished");
   
+  const char *fix_ios_js = INLINE_JAVASCRIPT(
+    var t=document.createElement('meta');
+    t.name = "viewport";
+    t.content = "initial-scale=1.0, maximum-scale=1.0, user-scalable=no, height=device-height, width=device-width, viewport-fit=cover";
+    document.getElementsByTagName('head')[0].appendChild(t);
+    $(document).on('blur', 'input, textarea', function() {
+      setTimeout(function(){ window.scrollTo(document.body.scrollLeft, document.body.scrollTop); }, 0);
+    });
+  );
+  
+  doJavaScript( fix_ios_js );
+  
+  
+  
   WApplication::instance()->useStyleSheet( "assets/css/OwletWebApp.css" );
+  
+  root()->addStyleClass( "root" );
   
   m_layout = root()->setLayout( make_unique<WGridLayout>() );
   
-  m_oxygen_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), 0, 0, AlignmentFlag::Middle | AlignmentFlag::Center );
+  
+  int row = 0;
+  auto header = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 0, 1, 2 );
+  
+  auto settings = header->addWidget( std::make_unique<WImage>("assets/images/noun_Settings_3144389.svg", "Settings") );
+  settings->addStyleClass( "SettingsIcon" );
+  settings->clicked().connect( [this](){
+    if( !m_settings )
+      m_settings = root()->addWidget( make_unique<SettingsDialog>() );
+    m_settings->finished().connect( [=](){
+      if( m_settings )
+        m_settings->removeFromParent();
+      m_settings = nullptr;
+    });
+  });
+  
+  
+  m_status = header->addWidget( std::make_unique<WText>("&nbsp;") );
+  m_status->addStyleClass( "StatusTxt" );
+  
+  
+  ++row;
+  m_oxygen_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 0, AlignmentFlag::Middle | AlignmentFlag::Center );
   m_oxygen_disp->addStyleClass( "CurrentOxygen" );
   
   auto icon = m_oxygen_disp->addWidget( make_unique<WImage>( WLink("assets/images/noun_Lungs_2911021.svg") ) );
@@ -74,11 +113,9 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   m_current_oxygen->addStyleClass( "CurrentValueTxt" );
   auto postfix = m_oxygen_disp->addWidget( make_unique<WText>("%") );
   postfix->addStyleClass( "CurrentValueUnits" );
-  m_current_oxygen_time = m_oxygen_disp->addWidget( make_unique<WText>("") );
-  m_current_oxygen_time->addStyleClass( "CurrentValueTime" );
   
   
-  m_heartrate_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), 0, 1, AlignmentFlag::Middle | AlignmentFlag::Center );
+  m_heartrate_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 1, AlignmentFlag::Middle | AlignmentFlag::Center );
   m_heartrate_disp->addStyleClass( "CurrentHeart" );
   
   icon = m_heartrate_disp->addWidget( make_unique<WImage>( WLink("assets/images/noun_Heart_3432419.svg") ) );
@@ -88,175 +125,40 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   m_current_heartrate->addStyleClass( "CurrentValueTxt" );
   postfix = m_heartrate_disp->addWidget( make_unique<WText>("&nbsp;BPM") );
   postfix->addStyleClass( "CurrentValueUnits" );
-  m_current_heartrate_time = m_heartrate_disp->addWidget( make_unique<WText>("") );
-  m_current_heartrate_time->addStyleClass( "CurrentValueTime" );
+
   
-  
-  m_status_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), 0, 2, AlignmentFlag::Middle | AlignmentFlag::Center );
-  m_status_disp->addStyleClass( "Status" );
-  icon = m_status_disp->addWidget( make_unique<WImage>( WLink("assets/images/noun_Info_2455956.svg") ) );
-  icon->setHeight( WLength(25,LengthUnit::Pixel) );
-  icon->addStyleClass( "InfoIcon" );
-  m_status = m_status_disp->addWidget( std::make_unique<WText>("--") );
-  m_status->addStyleClass( "StatusTxt" );
-  m_status_time = m_status_disp->addWidget( std::make_unique<WText>("") );
-  m_status_time->addStyleClass( "CurrentValueTime" );
-  
-  m_chart = m_layout->addWidget( std::make_unique<OwletChart>(true, false), 1, 0, 1, 3 );
+  ++row;
+  m_chart = m_layout->addWidget( std::make_unique<OwletChart>(true, false), row, 0, 1, 2 );
   
   // \TODO: set height based off actual screen size
   //m_chart->setMaximumSize( WLength::Auto, WLength(400,Wt::LengthUnit::Pixel) );
   
-  auto showoptions = m_layout->addWidget( make_unique<WContainerWidget>(), 2, 0, 1, 3 );
-  m_show_oxygen = showoptions->addWidget( make_unique<WCheckBox>("Oxygen") );
-  m_show_oxygen->setInline( false );
-  
-  //m_show_oxygen = m_layout->addWidget( make_unique<WCheckBox>("Oxygen"), 0, 1, AlignmentFlag::Left );
-  m_show_oxygen->setChecked( true );
-  m_show_oxygen->changed().connect( this, &OwletWebApp::toggleLines );
-  
-  m_show_heartrate = showoptions->addWidget( make_unique<WCheckBox>("HeartRate") );
-  m_show_heartrate->setInline( false );
-  //m_show_heartrate = m_layout->addWidget( make_unique<WCheckBox>("HeartRate"), 1, 1, AlignmentFlag::Left );
-  m_show_heartrate->setChecked( false );
-  m_show_heartrate->changed().connect( this, &OwletWebApp::toggleLines );
-  
-  //"Zoom: click-drag, Pan: shift-click-drag, Restore: double-click"
-  
-  
-  auto oxygen_alarm_row = m_layout->addWidget( make_unique<WContainerWidget>(), 3, 0, 1, 3 );
-  
-  auto label = oxygen_alarm_row->addWidget( make_unique<WLabel>("Lower Oxygen Limit:&nbsp;") );
-  m_oxygen_limit = oxygen_alarm_row->addWidget( make_unique<WSpinBox>() );
-  m_oxygen_limit->setRange( 80, 100 );
-  m_oxygen_limit->setSingleStep( 1 );
-  //m_oxygen_limit->setNativeControl( true );
-  m_oxygen_limit->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "OxygenThreshold", value );
-    
-    {
-      std::unique_lock<std::mutex> lock( sm_oxygen_alarm.m_mutex );
-      sm_oxygen_alarm.m_threshold = value;
-    }
-  });
-  
-  
-  label = oxygen_alarm_row->addWidget( make_unique<WLabel>("&nbsp;&nbsp;Seconds under limit before alarm:&nbsp;") );
-  m_oxygen_time_wait = oxygen_alarm_row->addWidget( make_unique<WSpinBox>() );
-  m_oxygen_time_wait->setRange( 0, 600 );
-  m_oxygen_time_wait->setSingleStep( 1 );
-  m_oxygen_time_wait->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "BelowOxygenThresholdSeconds", value );
-    
-    {
-      std::unique_lock<std::mutex> lock( sm_oxygen_alarm.m_mutex );
-      sm_oxygen_alarm.m_deviation_seconds = value;
-      
-      // \TODO: if sm_oxygen_alarm.m_alarm_wait_timer is currently set - make it shorter
-    }
-  });
-
-  
-  auto low_heart_row = m_layout->addWidget( make_unique<WContainerWidget>(), 4, 0, 1, 3 );
-  
-  label = low_heart_row->addWidget( make_unique<WLabel>("Lower Heartrate Limit:&nbsp;") );
-  m_low_heartrate_limit = low_heart_row->addWidget( make_unique<WSpinBox>() );
-  m_low_heartrate_limit->setRange( 20, 150 );
-  m_low_heartrate_limit->setSingleStep( 1 );
-  m_low_heartrate_limit->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "HeartRateLowerThreshold", value );
-    
-    {
-      std::unique_lock<std::mutex> lock( sm_heartrate_low_alarm.m_mutex );
-      sm_heartrate_low_alarm.m_threshold = value;
-    }
-  });
-  
-  
-  auto high_heart_row = m_layout->addWidget( make_unique<WContainerWidget>(), 5, 0, 1, 3 );
-  
-  label = high_heart_row->addWidget( make_unique<WLabel>("Upper Heartrate Limit:&nbsp;") );
-  m_high_heartrate_limit = high_heart_row->addWidget( make_unique<WSpinBox>() );
-  m_high_heartrate_limit->setRange( 40, 300 );
-  m_high_heartrate_limit->setSingleStep( 1 );
-  m_high_heartrate_limit->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "HeartRateUpperThreshold", value );
-    
-    {
-      std::unique_lock<std::mutex> lock( sm_heartrate_low_alarm.m_mutex );
-      sm_heartrate_high_alarm.m_threshold = value;
-    }
-  });
-  
-  label = high_heart_row->addWidget( make_unique<WLabel>("&nbsp;&nbsp;Seconds outside heart rate before alarming:&nbsp;") );
-  
-  m_hearrate_time_wait = high_heart_row->addWidget( make_unique<WSpinBox>() );
-  m_hearrate_time_wait->setRange( 0, 600 );
-  m_hearrate_time_wait->setSingleStep( 1 );
-  m_hearrate_time_wait->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "HeartRateThresholdSeconds", value );
-    
-    {
-      std::unique_lock<std::mutex> lock( sm_heartrate_low_alarm.m_mutex );
-      sm_heartrate_high_alarm.m_deviation_seconds = value;
-    }
-  });
-  
-  
-  auto sock_off_row = m_layout->addWidget( make_unique<WContainerWidget>(), 6, 0, 1, 3 );
-  label = sock_off_row->addWidget( make_unique<WLabel>("Seconds with sock off allowed:&nbsp;") );
-  m_sock_off_wait = sock_off_row->addWidget( make_unique<WSpinBox>() );
-  m_sock_off_wait->setRange( -1, 2400 );
-  m_sock_off_wait->setSingleStep( 1 );
-  m_sock_off_wait->valueChanged().connect( []( const int value ){
-    OwletWebApp::set_config_value( "SockOffSeconds", value );
-    
-    sm_sock_off_alarm.set_enabled( (value>=0) );
-    if( value >= 0 )
-    {
-      std::unique_lock<std::mutex> lock( sm_heartrate_low_alarm.m_mutex );
-      sm_sock_off_alarm.m_deviation_seconds = value;
-    }
-  });
-  
-  
-  string iframe_js = "var iframe = document.createElement('iframe');"
-  "iframe.src = 'assets/audio/silence.mp3';"
-  "iframe.style.display = 'none';"
-  "iframe.allow = 'autoplay';"
-  "iframe.id = 'audio';"
-  "document.body.appendChild(iframe);";
-  doJavaScript( iframe_js );
-  
-  //const char *iframetxt = "'<iframe src=\"assets/audio/250-milliseconds-of-silence.mp3\" allow=\"autoplay\" id=\"audio\" style=\"display: none\"></iframe>'";
-  //m_layout->addWidget( , m_layout->rowCount(), 0 );
-  //domRoot()->addChild( make_unique<WText>(iframetxt,TextFormat::UnsafeXHTML) );
-  
-  
-  setThresholdsFromIniToGui();
-  
-  m_layout->setRowStretch( 1, 1 );
+  m_layout->setRowStretch( row, 1 );
   //m_layout->setColumnStretch( 0, 1 );
   
   
-  if( sm_oxygen_alarm.currently_alarming() )
-    startOxygenAlarm();
-  else if( sm_oxygen_alarm.currently_snoozed() )
+  //if( sm_oxygen_alarm.currently_alarming() )
+  //  startOxygenAlarm();
+  //else
+    if( sm_oxygen_alarm.currently_snoozed() )
     snoozeOxygenAlarm();
   
-  if( sm_heartrate_low_alarm.currently_alarming() )
-    startLowHeartRateAlarm();
-  else if( sm_heartrate_low_alarm.currently_snoozed() )
+  //if( sm_heartrate_low_alarm.currently_alarming() )
+  //  startLowHeartRateAlarm();
+  //else
+    if( sm_heartrate_low_alarm.currently_snoozed() )
     snoozeLowHeartRateAlarm();
   
-  if( sm_heartrate_high_alarm.currently_alarming() )
-    startHighHeartRateAlarm();
-  else if( sm_heartrate_high_alarm.currently_snoozed() )
+  //if( sm_heartrate_high_alarm.currently_alarming() )
+  //  startHighHeartRateAlarm();
+  //else
+    if( sm_heartrate_high_alarm.currently_snoozed() )
     snoozeHighHeartRateAlarm();
   
-  if( sm_sock_off_alarm.currently_alarming() )
-    startSockOffAlarm();
-  else if( sm_sock_off_alarm.currently_snoozed() )
+  //if( sm_sock_off_alarm.currently_alarming() )
+  //  startSockOffAlarm();
+  //else
+    if( sm_sock_off_alarm.currently_snoozed() )
     snoozeSockOffAlarm();
   
   
@@ -297,6 +199,88 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
     }//if( g_oxygen_values.size() )
   }//end lock on g_data_mutex
   
+  
+  
+  const char *heartRateUpdatedNow_js = INLINE_JAVASCRIPT( function(dt){
+    
+    console.log( " heartrate updated to " + dt );
+      const wtroot = document.querySelector('.Wt-domRoot');
+      if( wtroot )
+        wtroot.dataset.heartRateUpdateTime = dt;
+    }
+  );
+  declareJavaScriptFunction( "heartRateUpdatedNow", heartRateUpdatedNow_js );
+  
+  const char *oxygenUpdatedNow_js = INLINE_JAVASCRIPT( function(dt){
+    console.log( "oxygenupdated to " + dt );
+      const wtroot = document.querySelector('.Wt-domRoot');
+      if( wtroot )
+        wtroot.dataset.oxygenUpdateTime = dt;
+    }
+  );
+  declareJavaScriptFunction( "oxygenUpdatedNow", oxygenUpdatedNow_js );
+  
+  
+  const char *statusUpdatedNow_js = INLINE_JAVASCRIPT( function(dt,status){
+      const wtroot = document.querySelector('.Wt-domRoot');
+      if( wtroot )
+      {
+        wtroot.dataset.status = status;
+        wtroot.dataset.statusUpdateTime = dt;
+      }
+    }
+  );
+  declareJavaScriptFunction( "statusUpdated", statusUpdatedNow_js );
+  
+  
+  
+  
+  const string checkStatusJs = INLINE_JAVASCRIPT(
+    const doupdate = function(el){
+    
+      const updated = function( whenup ){
+        const nsec = (Date.now() - whenup) / 1000;
+        if( nsec < 30 )
+          return "now";
+        if( nsec < 45 )
+          return "30 sec. ago";
+        if( nsec < 45 )
+          return "1 min. ago";
+        if( nsec < 105 )
+          return "1.5 min. ago";
+        if( nsec < 150 )
+          return "2 min. ago";
+        
+        const nminute = Math.floor( nsec / 60 );
+        return nminute + " min. ago";
+      };
+    
+      const wtroot = document.querySelector('.Wt-domRoot');
+    
+      let txt = "";
+      if( wtroot && wtroot.dataset.status )
+        txt += wtroot.dataset.status + ". ";
+      if( wtroot && wtroot.dataset.oxygenUpdateTime )
+        txt += "O2 " + updated(wtroot.dataset.oxygenUpdateTime) + ".  ";
+      if( wtroot && wtroot.dataset.heartRateUpdateTime )
+        txt += "HR " + updated(wtroot.dataset.heartRateUpdateTime) + ". ";
+      if( wtroot && wtroot.dataset.statusUpdateTime )
+        txt += "Status " + updated(wtroot.dataset.statusUpdateTime) + ".";
+      
+      el.innerHTML = txt;
+      
+      const opac = function( whenup ){
+        return Math.max(0.1, 1.0 - (Date.now() - whenup) / 180000 );
+      };
+    
+      $('.CurrentOxygen').css({ opacity: opac(wtroot.dataset.oxygenUpdateTime) });
+      $('.CurrentHeart').css({ opacity: opac(wtroot.dataset.heartRateUpdateTime) });
+    };
+  );
+  const string txtrf = m_status->jsRef();
+  
+  root()->doJavaScript( checkStatusJs + "setInterval( function(){ doupdate(" + txtrf + "); }, 5000);");
+  
   if( latest_status )
     updateStatusToClient( *latest_status );
   
@@ -306,39 +290,36 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   if( last_heartrate_time.isValid() && last_heartrate )
     updateHeartRateToClient( last_heartrate_time, last_heartrate );
   
-  
-  
-  // \TODO: only do this next call if audio cant auto-play
-  WTimer::singleShot( std::chrono::milliseconds(1500), this, &OwletWebApp::audioPlayPopup );
+  checkInitialAutoAudioPlay();
 }//OwletWebApp constructor
-
-
-
-void OwletWebApp::toggleLines()
-{
-  m_layout->removeWidget(m_chart);
-  m_chart = m_layout->addWidget( std::make_unique<OwletChart>(m_show_oxygen->isChecked(),
-                                                              m_show_heartrate->isChecked()), 1, 0, 1, 3 );
-}
 
 
 void OwletWebApp::updateOxygenToClient( const Wt::WDateTime &last_oxygen_time, const int last_oxygen )
 {
   m_current_oxygen->setText( std::to_string(last_oxygen) + "" );
-  const auto now = WDateTime::currentDateTime();
-  auto localdate = last_oxygen_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
-  const char *format = (now.date() == last_oxygen_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
-  m_current_oxygen_time->setText( localdate.toString(format) );
+  //const auto now = WDateTime::currentDateTime();
+  //auto localdate = last_oxygen_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
+  //const char *format = (now.date() == last_oxygen_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
+  
+
+  //const char *toJsDateFmt = "yyyy-MM-dd hh:mm:ss";
+  //doJavaScript( javaScriptClass() + ".oxygenUpdatedNow( new Date(\"" + localdate.toString(toJsDateFmt).toUTF8() + "\") );" );
+  
+  doJavaScript( javaScriptClass() + ".oxygenUpdatedNow(" + to_string(1000*last_oxygen_time.toTime_t()) + ");" );
 }//void updateOxygenToClient( const Wt::WDateTime &utc, const int value, const int moving )
 
 
 void OwletWebApp::updateHeartRateToClient( const Wt::WDateTime &last_heartrate_time, const int last_heart )
 {
   m_current_heartrate->setText( std::to_string(last_heart) + "" );
-  const auto now = WDateTime::currentDateTime();
-  auto localdate = last_heartrate_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
-  const char *format = (now.date() == last_heartrate_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
-  m_current_heartrate_time->setText( localdate.toString(format) );
+  //const auto now = WDateTime::currentDateTime();
+  //auto localdate = last_heartrate_time.addSecs( 60* wApp->environment().timeZoneOffset().count() );
+  //const char *format = (now.date() == last_heartrate_time.date()) ? "hh:mm:ss" : "ddd hh:mm:ss";
+
+  //const char *toJsDateFmt = "yyyy-MM-dd hh:mm:ss";
+  //doJavaScript( javaScriptClass() + ".heartRateUpdatedNow( new Date(\"" + localdate.toString(toJsDateFmt).toUTF8() + "\") );" );
+  
+  doJavaScript( javaScriptClass() + ".heartRateUpdatedNow(" + to_string(1000*last_heartrate_time.toTime_t()) + ");" );
 }//void updateHeartRateToClient( const Wt::WDateTime &utc, const int value, const int moving )
 
 
@@ -385,12 +366,14 @@ void OwletWebApp::updateStatusToClient( const DbStatus status )
   //  txt += "<b>Heart rate high</b>&nbsp;&nbsp;";
   
   if( sm_sock_off_alarm.currently_alarming() || sm_sock_off_alarm.currently_snoozed() )
+  {
     txt += "<b>Sock Off</b>";
-  
-  if( txt.empty() )
-    m_status_disp->removeStyleClass( "Alarming" );
-  else
-    m_status_disp->addStyleClass( "Alarming" );
+    if( !m_status->hasStyleClass("Alarming") )
+      m_status->addStyleClass( "Alarming" );
+  }else if( m_status->hasStyleClass("Alarming") )
+  {
+    m_status->removeStyleClass( "Alarming" );
+  }
   
   if( status.movement )
     txt += string(txt.empty() ? "" : ",&nbsp;") + "Moving";
@@ -404,16 +387,10 @@ void OwletWebApp::updateStatusToClient( const DbStatus status )
     txt += string(txt.empty() ? "" : ",&nbsp;") + "Batt. " + to_string(status.battery) +"%";
   if( txt.empty() )
     txt = "Normal";
-  
-  m_status->setText( txt );
-  
-  WDateTime datetime = utcDateTimeFromStr(status.utc_date);
-  assert( datetime.isValid() && !datetime.isNull() );
-  
-  const auto now = WDateTime::currentDateTime();
-  auto localdate = datetime.addSecs( 60 * wApp->environment().timeZoneOffset().count() );
-  const char *format = (now.date() == datetime.date()) ? "hh:mm:ss" : "yyyy-MM-dd hh:mm:ss";
-  m_status_time->setText( localdate.toString(format).toUTF8() );
+    
+  const WDateTime datetime = utcDateTimeFromStr(status.utc_date);
+
+  doJavaScript( javaScriptClass() + ".statusUpdated(" + to_string(1000*datetime.toTime_t()) + ",'" + txt + "');" );
 }//void updateStatusToClient( const DbStatus status )
 
 
@@ -441,14 +418,31 @@ void OwletWebApp::startOxygenAlarm()
   ////WInteractWidget *repeat = audio->button(MediaPlayerButtonId::RepeatOn);
   //audio->play();
   
+  //If we start auto-playing, but the user hasnt done the manually clicking of play to allow
+  //  auto play (like if we load the page while it is already alarming!), then we will get an
+  //  uncaught exception or something, and app will fail and we cause a refresh, making it
+  //  so we cant dismiss the alarm.  So we will manulaly play the audio with JS using a promise.
   auto audio = m_oxygen_mb->contents()->addWidget( make_unique<WAudio>() );
-  audio->setOptions( PlayerOption::Autoplay | PlayerOption::Loop ); //PlayerOption::Controls
+  audio->setOptions( /* PlayerOption::Autoplay | */ PlayerOption::Loop );
   audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
-  audio->play();
-  //<audio id="player" autoplay loop>
-  //    <source src="assets/audio/CheckOnAriMommy.mp3" type="audio/mp3">
-  //</audio>
+
+  /// \TODO: put this JS all in a function, instead of repeating it for every alarm call!
+  string js =
+  "let playPromise = " + audio->jsRef() + ".play();"
+  "if (playPromise !== undefined) {"
+  "  playPromise.then(() => {"
+  "    console.log( 'Successfully starte O2 alarm playing' );"
+  // + m_auto_play_test->createCall( {"true"} ) +
+  "  }).catch(error => {"
+  "    console.log( 'Failed auto-play of O2 alarm with error: ' + error.name );"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "  });"
+  "}else{"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "}";
+  audio->doJavaScript( js );
+  
   
   
   m_oxygen_mb->setModal( true );
@@ -536,11 +530,27 @@ void OwletWebApp::startLowHeartRateAlarm()
   WPushButton *btn = m_low_heartrate_mb->addButton( "Dismiss", StandardButton::Ok );
   btn->clicked().connect( this, &OwletWebApp::lowHeartrateSnoozed );
 
+  //See notes from O2 alarm for why we play using JS
   auto audio = m_low_heartrate_mb->contents()->addWidget( make_unique<WAudio>() );
   audio->addSource("assets/audio/CheckOnAriMommy.mp3");
-  audio->setOptions( PlayerOption::Autoplay | PlayerOption::Loop ); //PlayerOption::Controls
+  audio->setOptions( /* PlayerOption::Autoplay |*/ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
-  audio->play();
+  //audio->play();
+  
+  string js =
+  "let playPromise = " + audio->jsRef() + ".play();"
+  "if (playPromise !== undefined) {"
+  "  playPromise.then(() => {"
+  "    console.log( 'Successfully starte O2 alarm playing' );"
+  // + m_auto_play_test->createCall( {"true"} ) +
+  "  }).catch(error => {"
+  "    console.log( 'Failed auto-play of O2 alarm with error: ' + error.name );"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "  });"
+  "}else{"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "}";
+  audio->doJavaScript( js );
   
   
   m_low_heartrate_mb->setModal( true );
@@ -583,11 +593,28 @@ void OwletWebApp::startHighHeartRateAlarm()
   WPushButton *btn = m_high_heartrate_mb->addButton( "Dismiss", StandardButton::Ok );
   btn->clicked().connect( this, &OwletWebApp::highHeartrateSnoozed );
 
+  // See notes for O2 heartrate of why we play using JS
   auto audio = m_high_heartrate_mb->contents()->addWidget( make_unique<WAudio>() );
   audio->addSource("assets/audio/CheckOnAriMommy.mp3");
-  audio->setOptions( PlayerOption::Autoplay | PlayerOption::Loop ); //PlayerOption::Controls
+  audio->setOptions( /* PlayerOption::Autoplay |*/ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
-  audio->play();
+  //audio->play();
+  
+  string js =
+  "let playPromise = " + audio->jsRef() + ".play();"
+  "if (playPromise !== undefined) {"
+  "  playPromise.then(() => {"
+  "    console.log( 'Successfully starte O2 alarm playing' );"
+  // + m_auto_play_test->createCall( {"true"} ) +
+  "  }).catch(error => {"
+  "    console.log( 'Failed auto-play of O2 alarm with error: ' + error.name );"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "  });"
+  "}else{"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "}";
+  audio->doJavaScript( js );
+  
   
   m_high_heartrate_mb->setModal( true );
   m_high_heartrate_mb->show();
@@ -630,11 +657,29 @@ void OwletWebApp::startSockOffAlarm()
   WPushButton *btn = m_sock_off_mb->addButton( "Dismiss", StandardButton::Ok );
   btn->clicked().connect( this, &OwletWebApp::sockOffSnoozed );
 
+  // See notes for O2 alarm for why we play using JS
   auto audio = m_sock_off_mb->contents()->addWidget( make_unique<WAudio>() );
   audio->addSource("assets/audio/CheckOnAriMommy.mp3");
-  audio->setOptions( PlayerOption::Autoplay | PlayerOption::Loop ); //PlayerOption::Controls
+  audio->setOptions( /* PlayerOption::Autoplay | */ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
-  audio->play();
+  //audio->play();
+  
+  string js =
+  "let playPromise = " + audio->jsRef() + ".play();"
+  "if (playPromise !== undefined) {"
+  "  playPromise.then(() => {"
+  "    console.log( 'Successfully starte O2 alarm playing' );"
+  // + m_auto_play_test->createCall( {"true"} ) +
+  "  }).catch(error => {"
+  "    console.log( 'Failed auto-play of O2 alarm with error: ' + error.name );"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "  });"
+  "}else{"
+  //  + m_auto_play_test->createCall( {"false"} ) +
+  "}";
+  audio->doJavaScript( js );
+  
+  
   
   m_sock_off_mb->setModal( true );
   m_sock_off_mb->show();
@@ -673,6 +718,85 @@ void OwletWebApp::sockOffAlarmEnded()
 }//void sockOffAlarmEnded()
 
 
+void OwletWebApp::checkInitialAutoAudioPlay()
+{
+  // For some browsers apparently playing audio from an iframe will allow auto-playing of audio
+  string iframe_js = "var iframe = document.createElement('iframe');"
+  "iframe.src = 'assets/audio/silence.mp3';"
+  "iframe.style.display = 'none';"
+  "iframe.allow = 'autoplay';"
+  "iframe.id = 'audio';"
+  "document.body.appendChild(iframe);";
+  doJavaScript( iframe_js );
+  
+  //const char *iframetxt = "'<iframe src=\"assets/audio/250-milliseconds-of-silence.mp3\" allow=\"autoplay\" id=\"audio\" style=\"display: none\"></iframe>'";
+  //m_layout->addWidget( , m_layout->rowCount(), 0 );
+  //domRoot()->addChild( make_unique<WText>(iframetxt,TextFormat::UnsafeXHTML) );
+  
+  
+  // Lets do a check if audio can be auto-played, and if not have the user manually play some so the
+  //  the audio can be auto-played.
+  /// Well add the audio to a random element since we wont be showing controls anyway
+  auto audio = m_oxygen_disp->addWidget( make_unique<WAudio>() );
+  audio->addSource( "assets/audio/silence.mp3" );
+  audio->setPreloadMode( MediaPreloadMode::Auto );
+  audio->pause(); //force call to loadJavaScript();
+  
+
+  m_auto_play_test = std::make_unique<Wt::JSignal<bool>>( this, "canplayaudio" );
+  
+  string js =
+  "let startPlayPromise = " + audio->jsRef() + ".play();"
+  "if (startPlayPromise !== undefined) {"
+  "  startPlayPromise.then(() => {"
+  "    console.log( 'Successfully played' );"
+    + m_auto_play_test->createCall( {"true"} ) +
+  "  }).catch(error => {"
+  "    console.log( 'Failed auto-play with error: ' + error.name );"
+    + m_auto_play_test->createCall( {"false"} ) +
+  "  });"
+  "}else{"
+    + m_auto_play_test->createCall( {"false"} ) +
+  "}";
+  
+  
+  m_auto_play_test->connect( [this,audio]( const bool played ){
+    m_auto_play_test.reset();
+    m_oxygen_disp->removeWidget( audio );
+    if( played )
+      doInitialAlarming();
+    else
+      audioPlayPopup();
+  } );
+  
+  audio->doJavaScript( js );
+}//void checkInitialAutoAudioPlay()
+
+
+void OwletWebApp::doInitialAlarming()
+{
+  if( sm_oxygen_alarm.currently_alarming() )
+    startOxygenAlarm();
+  else if( sm_oxygen_alarm.currently_snoozed() )
+    snoozeOxygenAlarm();
+  
+  if( sm_heartrate_low_alarm.currently_alarming() )
+    startLowHeartRateAlarm();
+  else if( sm_heartrate_low_alarm.currently_snoozed() )
+    snoozeLowHeartRateAlarm();
+  
+  if( sm_heartrate_high_alarm.currently_alarming() )
+    startHighHeartRateAlarm();
+  else if( sm_heartrate_high_alarm.currently_snoozed() )
+    snoozeHighHeartRateAlarm();
+  
+  if( sm_sock_off_alarm.currently_alarming() )
+    startSockOffAlarm();
+  else if( sm_sock_off_alarm.currently_snoozed() )
+    snoozeSockOffAlarm();
+}//void doInitialAlarming()
+
+
 void OwletWebApp::audioPlayPopup()
 {
   auto message = root()->addChild(make_unique<WMessageBox>(
@@ -684,23 +808,50 @@ void OwletWebApp::audioPlayPopup()
   audio->setOptions( PlayerOption::Controls ); //PlayerOption::Loop
   audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
-  //audio->play();
+  
   audio->ended().connect( [=](){
     message->accept();
     message->removeFromParent();
     
     // \TODO: test that audio can actually autoplay now
+    
+    doInitialAlarming();
   });
+  audio->setInline( false );
+  audio->setHeight( 45 );
+  
+  auto txt = message->contents()->addWidget( make_unique<WText>( "This is necassary to allow the"
+                                                                " browser to auto-play audio." ) );
+  txt->setInline( false );
   
   WPushButton *btn = message->addButton( "Skip", StandardButton::Ok );
-  btn->clicked().connect( [=](){
+  btn->clicked().connect( [this,message](){
     message->accept();
     message->removeFromParent();
+    doInitialAlarming();
   } );
   
   message->setModal( true );
   message->show();
 }//void audioPlayPopup();
+
+
+bool OwletWebApp::isShowingFiveMinuteAvrg()
+{
+  return m_chart->isShowingFiveMinuteAvrg();
+}//bool isShowingFiveMinuteAvrg()
+
+
+void OwletWebApp::showFiveMinuteAvrgData()
+{
+  m_chart->showFiveMinuteAvrgData();
+}//void showFiveMinuteAvrgData()
+
+
+void OwletWebApp::showIndividualPointsData()
+{
+  m_chart->showIndividualPointsData();
+}//void showIndividualPointsData()
 
 
 void OwletWebApp::call_for_all( void(OwletWebApp::*mfcn)(void) )
@@ -922,36 +1073,48 @@ void OwletWebApp::addedData( const size_t num_readings_before, const size_t num_
 }//void addedData( const size_t num_readings_before, const size_t num_readings_after )
 
 
+void OwletWebApp::alarm_thresholds_updated()
+{
+  auto server = WServer::instance();
+  assert( server );
+  
+  int o2level = 0, hrlower = 0, hrupper = 0;
+
+  {
+    std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_oxygen_alarm.m_mutex );
+    o2level = OwletWebApp::sm_oxygen_alarm.m_threshold;
+  }
+  
+  {
+    std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_heartrate_low_alarm.m_mutex );
+    hrlower = OwletWebApp::sm_heartrate_low_alarm.m_threshold;
+  }
+  
+  {
+    std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_heartrate_high_alarm.m_mutex );
+    hrupper = OwletWebApp::sm_heartrate_high_alarm.m_threshold;
+  }
+  
+  
+  server->postAll( [=](){
+    auto app = dynamic_cast<OwletWebApp *>( WApplication::instance() );
+    if( !app )
+      return;
+    
+    app->m_chart->oxygenAlarmLevelUpdated( o2level );
+    app->m_chart->heartRateAlarmLevelUpdated( hrlower, hrupper );
+    
+    app->triggerUpdate();
+  });
+}//void alarm_thresholds_updated()
+
+
 void OwletWebApp::set_error( string msg )
 {
   
 }
 
-void OwletWebApp::setThresholdsFromIniToGui()
-{
-  int OxygenThreshold, BelowOxygenThresholdSeconds, HeartRateLowerThreshold;
-  int HeartRateUpperThreshold, HeartRateThresholdSeconds, SnoozeSeconds;
-  int SockOffSeconds;
-  
-  {//begin lock on sm_ini_mutex
-    std::unique_lock<std::mutex> lock(  sm_ini_mutex );
-    SnoozeSeconds = sm_ini.get<int>("SnoozeSeconds");
-    OxygenThreshold = sm_ini.get<int>("OxygenThreshold");
-    BelowOxygenThresholdSeconds = sm_ini.get<int>("BelowOxygenThresholdSeconds");
-    HeartRateLowerThreshold = sm_ini.get<int>("HeartRateLowerThreshold");
-    HeartRateUpperThreshold = sm_ini.get<int>("HeartRateUpperThreshold");
-    HeartRateThresholdSeconds = sm_ini.get<int>("HeartRateThresholdSeconds");
-    SockOffSeconds = sm_ini.get<int>("SockOffSeconds");
-  }//end lock on sm_ini_mutex
-  
-  //Now set widgets...
-  m_oxygen_limit->setValue( OxygenThreshold );
-  m_oxygen_time_wait->setValue( BelowOxygenThresholdSeconds );
-  m_low_heartrate_limit->setValue( HeartRateLowerThreshold );
-  m_high_heartrate_limit->setValue( HeartRateUpperThreshold );
-  m_hearrate_time_wait->setValue( HeartRateThresholdSeconds );
-  m_sock_off_wait->setValue( SockOffSeconds );
-}//setThresholdsFromIniToGui()
+
 
 
 void OwletWebApp::parse_ini()
@@ -1053,7 +1216,8 @@ void OwletWebApp::set_config_value( const char *key, const int value  )
     auto app = dynamic_cast<OwletWebApp *>( WApplication::instance() );
     if( app )
     {
-      app->setThresholdsFromIniToGui();
+      if( app->m_settings )
+        app->m_settings->m_settings->setThresholdsFromIniToGui();
       app->triggerUpdate();
     }else
     {

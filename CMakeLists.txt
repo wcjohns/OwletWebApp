@@ -14,7 +14,8 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.50 REQUIRED COMPONENTS program_options thread filesystem )
 
 
-add_executable( OwletWebApp.wt main.cpp Alarmer.h Alarmer.cpp OwletWebApp.h OwletWebApp.cpp Database.h Database.cpp OwletChart.cpp OwletChart.h )
+add_executable( OwletWebApp.wt main.cpp Alarmer.h Alarmer.cpp OwletWebApp.h OwletWebApp.cpp
+                Database.h Database.cpp OwletChart.cpp OwletChart.h Settings.h Settings.cpp )
 
 find_library( LIBZ_LIBRARY z )
 include( cmake/FindWt.cmake )

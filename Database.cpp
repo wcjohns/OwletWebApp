@@ -48,7 +48,6 @@ std::deque<OwletReading> g_readings;
 std::deque<DbStatus> g_statuses;
 
 
-
 //Customize the schema Wt uses to match what is defined in the Python script
 namespace Wt
 {
@@ -103,6 +102,8 @@ void look_for_db_changes()
   int last_oxygen_index = -1, last_heartrate_index = -1, last_status_index = -1;
   //std::filesystem::file_time_type last_write = std::filesystem::file_time_type::min();
   std::time_t last_write = std::numeric_limits<std::time_t>::min();
+  
+  WDateTime prev_o2, prev_heart;
   
   while( true )
   {
@@ -249,6 +250,8 @@ void look_for_db_changes()
     
     //cout << "Got " << new_oxygen.size() << " new oxygens" << endl;
     size_t num_readings_before = 0, num_readings_after = 0;
+    
+    
     {//begin lock on g_data_mutex
       std::lock_guard<mutex> data_lock( g_data_mutex );
       g_oxygen_values.insert( end(g_oxygen_values), begin(new_oxygen), end(new_oxygen) );
@@ -257,7 +260,27 @@ void look_for_db_changes()
       
       num_readings_before = g_readings.size();
       for( const auto &iter : new_readings )
-        g_readings.push_back( iter.second );
+      {
+        const auto &thispoint = iter.second;
+        
+        //Lets keep the chart from connecting lines between points greater than two minutes apart
+        //  but where there are statuses within those few minutes - this is a hack, but whatever
+        if( (prev_heart.isValid() && std::abs(prev_heart.secsTo(thispoint.utc_time)) > g_nsec_no_data)
+             || (prev_o2.isValid() && std::abs(prev_o2.secsTo(thispoint.utc_time)) > g_nsec_no_data) )
+        {
+          OwletReading dummy;
+          dummy.utc_time = thispoint.utc_time.addSecs(-1);
+          g_readings.push_back( dummy );
+        }
+        
+        if( thispoint.heartrate > 0 )
+          prev_heart = thispoint.utc_time;
+        if( thispoint.oxygen > 0 )
+          prev_o2 = thispoint.utc_time;
+        
+        g_readings.push_back( thispoint );
+      }//for( const auto &iter : new_readings )
+      
       num_readings_after = g_readings.size();
       
       if( g_oxygen_values.size() > (g_max_data_entries+100) )

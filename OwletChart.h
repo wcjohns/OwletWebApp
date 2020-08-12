@@ -8,6 +8,7 @@
 #include <Wt/WDateTime.h>
 #include <Wt/WContainerWidget.h>
 
+class OwlChartImp;
 class OwletChartModel;
 
 namespace Wt{
@@ -21,17 +22,15 @@ class WCartesianChart;
 
 class OwletChart : public Wt::WContainerWidget
 {
-  Wt::Chart::WCartesianChart *m_chart;
+  OwlChartImp *m_oxygen_chart;
+  OwlChartImp *m_heartrate_chart;
   std::shared_ptr<OwletChartModel> m_model;
   
   Wt::WComboBox *m_duration_select;
-  Wt::WPushButton *m_previous_range;
-  Wt::WPushButton *m_next_range;
-  Wt::WCheckBox *m_oxygen;
-  Wt::WCheckBox *m_heartrate;
+  Wt::WInteractWidget *m_previous_range;
+  Wt::WInteractWidget *m_next_range;
   
-  int m_last_oxygen;
-  int m_last_heartrate;
+  void configCharts();
   
 public:
   OwletChart( const bool oxygen, const bool heartrate );
@@ -46,6 +45,13 @@ public:
   void nextTimeRangeCallback();
   void changeDurationCallback();
   void zoomRangeChangeCallback( double x1, double x2 );
+  
+  bool isShowingFiveMinuteAvrg();
+  void showFiveMinuteAvrgData();
+  void showIndividualPointsData();
+  
+  void oxygenAlarmLevelUpdated( const int o2level );
+  void heartRateAlarmLevelUpdated( const int hrlower, const int hrupper );
   
   virtual ~OwletChart();
 };//class OwletChart

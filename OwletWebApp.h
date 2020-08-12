@@ -17,6 +17,7 @@
 
 //Forward declarations
 class OwletChart;
+class SettingsDialog;
 namespace Wt
 {
   class WText;
@@ -40,9 +41,6 @@ class OwletWebApp : public Wt::WApplication
 {
 public:
   OwletWebApp(const Wt::WEnvironment& env);
-
-  void toggleLines();
-  
   
   void updateDataToClient( const std::vector<std::tuple<Wt::WDateTime,int,int,int>> &data );
   void updateOxygenToClient( const Wt::WDateTime &utc, const int value );
@@ -65,7 +63,12 @@ public:
   void highHeartRateAlarmEnded();
   void sockOffAlarmEnded();
   
+  void checkInitialAutoAudioPlay();
   void audioPlayPopup();
+  
+  bool isShowingFiveMinuteAvrg();
+  void showFiveMinuteAvrgData();
+  void showIndividualPointsData();
   
   static void call_for_all( void(OwletWebApp::*mfcn)(void) );
   
@@ -88,6 +91,7 @@ public:
   static void start_sock_off_alarms();
   static void stop_sock_off_alarms();
   
+  void doInitialAlarming();
   
   void oxygenSnoozed();
   void lowHeartrateSnoozed();
@@ -103,10 +107,9 @@ public:
   
   static void addedData( const size_t num_readings_before, const size_t num_readings_after );
   
+  static void alarm_thresholds_updated();
   
   void set_error( std::string msg );
-  
-  void setThresholdsFromIniToGui();
   
   
   static void parse_ini();
@@ -125,41 +128,30 @@ public:
 private:
   Wt::WGridLayout *m_layout;
   
-  Wt::WContainerWidget *m_status_disp;
   Wt::WText *m_status;
-  Wt::WText *m_status_time;
   
   OwletChart *m_chart;
-  Wt::WCheckBox *m_show_oxygen;
-  Wt::WCheckBox *m_show_heartrate;
   
   Wt::WContainerWidget *m_oxygen_disp;
   Wt::WText *m_current_oxygen;
-  Wt::WText *m_current_oxygen_time;
   
   Wt::WContainerWidget *m_heartrate_disp;
   Wt::WText *m_current_heartrate;
-  Wt::WText *m_current_heartrate_time;
 
   Wt::WMessageBox *m_oxygen_mb;
-  Wt::WSpinBox *m_oxygen_limit;
-  Wt::WSpinBox *m_oxygen_time_wait;
-  
   Wt::WMessageBox *m_low_heartrate_mb;
-  Wt::WSpinBox *m_low_heartrate_limit;
-  
   Wt::WMessageBox *m_high_heartrate_mb;
-  Wt::WSpinBox *m_hearrate_time_wait;
-  Wt::WSpinBox *m_high_heartrate_limit;
-  
   Wt::WMessageBox *m_sock_off_mb;
-  Wt::WSpinBox *m_sock_off_wait;
   
+  SettingsDialog *m_settings;
   
+  std::unique_ptr<Wt::JSignal<bool>> m_auto_play_test;
+  
+  static const char * const sm_ini_config_filename;
+  
+public:
   static std::mutex sm_ini_mutex;
   static boost::property_tree::ptree sm_ini;
-
-  static const char * const sm_ini_config_filename;
   
   static Alarmer sm_oxygen_alarm;
   static Alarmer sm_heartrate_low_alarm;

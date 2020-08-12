@@ -55,9 +55,13 @@ extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<ti
 extern std::deque<OwletReading> g_readings;
 extern std::deque<DbStatus> g_statuses;
 
+
 //  Each entry probably takes less than 50 bytes, so 200k entries is like 10 MB.
 //  We are getting maybe like 1 reading per 30 seconds, so 200k is like 2 months of data.
 const size_t g_max_data_entries = 200000;
+
+/** How many seconds between data points to no longer draw a line between them. */
+const int g_nsec_no_data = 300;
 
 void look_for_db_changes();
 

@@ -1,23 +1,48 @@
+.root
+{
+  background: #E5E9F0;
+  color: #434C5E;
+}
 
+.SettingsIcon
+{
+  width: 35px;
+  margin-top: 5px;
+  margin-left: 5px;
+  cursor: pointer;
+  float: left;
+}
+
+.AlarmRow
+{
+  margin-bottom: 8px;
+}
+
+.AlarmValueLabel
+{
+  display: inline-block;
+  width: 7.5em;
+}
 
 .CurrentHeart, .CurrentOxygen, .Status
 {
-  border: 2px solid blue;
+  border: 2px solid #81A1C1;
   border-radius: 7px;
   width: 200px;
   height: 55px;
   padding: 6px;
+  background: #ECEFF4;
 }
 
 .CurrentHeart.Alarming, .CurrentOxygen.Alarming, .Status.Alarming
 {
-  border: 2px solid red;
-  background: red;
+  border: 2px solid #D08770;
+  background: #EBCB8B;
 }
 
 .InfoIcon
 {
-  margin-top: 4px;
+  vertical-align: baseline;
 }
 
 .CurrentValueTxt
@@ -31,20 +56,79 @@
   font-size: 20px;
 }
 
-.StatusTxt
-{
-  font-size: 15px;
-  margin-left: 0.5em;
-}
-
-.CurrentValueTime
-{
-  padding-left: 0.5em;
-  font-size: 8px;
-}
 
 .StatusTxt
 {
-  font-size: large;
+  white-space: nowrap;
+  float: right;
+  margin-right: 5px;
+  margin-top: 5px;
+}
+
+.OwletChart
+{
+  border: 2px solid #81A1C1;
+  border-radius: 7px;
+  margin-left: 2.5%;
+  margin-right: 2.5%;
+  background: #ECEFF4;
+}
+
+.titlebar
+{
+  background-color: #4C566A;
+  color: #ECEFF4;
+}
+
+.Wt-outset
+{
+  border: 1px solid #81A1C1;
+}
+
+.Wt-dialog
+{
+  background-color: #ECEFF4;
+}
+
+.SettingsDialog
+{
+  color: #2E3440;
+  width: 25em;
+}
+
+
+.Settings
+{
+  line-height: 30px;
+  overflow-y: auto;
+}
+
+.Settings fieldset
+{
+  margin-bottom: 25px;
+}
+
+.SockAlarmHint
+{
+  font-size: smaller;
+  color: #4C566A;
+  margin-left: 30px;
+}
+
+.PrevTimeRange
+{
+  margin-right: 20px;
+  height: 30px;
+}
+
+.NextTimeRange
+{
+  margin-left: 20px;
+  height: 30px;
+}
+
+.PrevTimeRange.disabled, .NextTimeRange.disabled
+{
+  opacity: 0.25;
 }
 
