@@ -32,10 +32,13 @@ public:
   
   Wt::WCheckBox *m_fivemin_avrg;
   Wt::WSpinBox *m_oxygen_limit;
+  Wt::WSpinBox *m_second_oxygen_limit;
+  Wt::WCheckBox *m_second_oxygen_disabled;
   Wt::WSpinBox *m_oxygen_time_wait;
   Wt::WSpinBox *m_low_heartrate_limit;
   Wt::WSpinBox *m_hearrate_time_wait;
   Wt::WSpinBox *m_high_heartrate_limit;
+  Wt::WCheckBox *m_sock_off_disabled;
   Wt::WSpinBox *m_sock_off_wait;
 };//class OwletChart
 

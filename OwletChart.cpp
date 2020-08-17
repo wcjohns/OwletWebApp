@@ -57,6 +57,58 @@ public:
   virtual double maxDate() const = 0;
   virtual void getAxisRange( const int column, const double x1, const double x2,
                                   double &ymin, double &ymax ) const = 0;
+  
+  
+  virtual WString displayData( int row, int column ) const
+  {
+    //Doesnt seem to ever be called when only plotting the data
+    const double dataflt = std::round( data(row,column) );
+    
+    switch ( column )
+    {
+      case 0:
+      {
+        const time_t datetime = static_cast<time_t>( round(dataflt) ); //dateflt - m_time_offset_seconds
+        const WDateTime dateobj = WDateTime::fromTime_t( datetime );
+        return WString::fromUTF8( to_client_str(dateobj) );
+      }
+        
+      case 1: return WString::fromUTF8( std::to_string( static_cast<int>(dataflt)) );
+      case 2: return WString::fromUTF8( std::to_string( static_cast<int>(dataflt)) );
+    }
+    
+    return WAbstractChartModel::displayData( row, column );
+  }//displayData(...)
+  
+  
+  virtual WFlags<ItemFlag> flags( int row, int column ) const
+  {
+    if( column != 1 && column != 2)
+      return WFlags<ItemFlag>{};
+    
+    return ItemFlag::XHTMLText | ItemFlag::DeferredToolTip;
+    //return ItemFlag::XHTMLText;
+    //return ItemFlag::DeferredToolTip;
+  }
+  
+  virtual WString toolTip( int row, int column ) const
+  {
+    if( column != 1 && column != 2 )
+      return WString();
+    
+    const double dateflt = data( row, 0 );
+    const double value = data( row, column );
+    
+    const int dataint = static_cast<int>( round(value) );
+    const time_t datetime = static_cast<time_t>( round(dateflt) ); //dateflt - m_time_offset_seconds
+    const WDateTime dateobj = WDateTime::fromTime_t( datetime );
+    const char *suffix = (column==1) ? "% O<sub>2</sub>" : " BPM";
+    
+    WString answer( "{1}{2}, {3}");
+    answer.arg( dataint ).arg( suffix ).arg( to_client_str(dateobj) );
+    cout << answer << endl;
+    return answer;
+  }//toolTip(...)
 };//class OwletChartModel;
 
 
@@ -282,11 +334,6 @@ public:
     return WString();
   }//headerData
   
-  virtual WString toolTip( int row, int column ) const
-  {
-    return WString();
-  }
-  
   virtual int columnCount() const
   {
     return 5;
@@ -300,15 +347,13 @@ public:
   //Additional functions we could use to customize the chart a little bit.
   virtual const WColor *markerPenColor( int row, int column ) const
   {
-    const static WColor s_data_point_color = WColor("#2E3440");
+    const static WColor s_o2_color = WColor("#2E3440");
+    const static WColor s_hr_color = WColor("#8FBCBB");
     
     switch( column )
     {
-      case 1:
-        return &s_data_point_color;
-        
-      case 2:
-        return nullptr;
+      case 1: return &s_o2_color;
+      case 2: return &s_hr_color;
     }//switch( column )
     
     return nullptr;
@@ -316,15 +361,13 @@ public:
   
   virtual const WColor *markerBrushColor (int row, int column) const
   {
-    const static WColor s_data_point_brush = WColor("#2E3440"); //WColor::fromHSL(0, 0, 0, 255);
+    const static WColor s_o2_brush = WColor("#2E3440");
+    const static WColor s_hr_brush = WColor("#8FBCBB");
     
     switch( column )
     {
-      case 1:
-        return &s_data_point_brush;
-        
-      case 2:
-        return nullptr;
+      case 1: return &s_o2_brush;
+      case 2: return &s_hr_brush;
     }//switch( column )
     
     return nullptr;
@@ -349,18 +392,9 @@ public:
       switch( column )
       {
         // { 0: DateTime, 1: Oxygen, 2: HeartRate, 3: Moving: 4: Connected, 5: Battery  }
-        case 0:
-          return nullptr;
-          
-        case 1:
-          if( reading.oxygen <= 0 )
-            return nullptr;
-          return &s_data_point_marker;
-          
-        case 2:
-          if( reading.heartrate <= 0 )
-            return nullptr;
-          return &s_data_point_marker;
+        case 0: return nullptr;
+        case 1: return ((reading.oxygen <= 0) ? nullptr : &s_data_point_marker);
+        case 2: return ((reading.heartrate <= 0) ? nullptr : &s_data_point_marker);
       }//switch( column )
     }//end lock on g_data_mutex
          
@@ -559,11 +593,7 @@ public:
     return WString();
   }//headerData
   
-  virtual WString toolTip( int row, int column ) const
-  {
-    return WString();
-  }
-  
+
   virtual int columnCount() const
   {
     return 5;
@@ -727,8 +757,6 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
     m_duration_select->addItem( txt );
   }//for( loop over duration )
   
-  m_duration_select->setCurrentIndex( DurationIndex::TwelveHours );
-  
   layout->setColumnStretch( 0, 1 );
   layout->setColumnStretch( 4, 1 );
   layout->setRowStretch( 0, 1 );
@@ -759,12 +787,12 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
   
   const double timezone_offset = 60*wApp->environment().timeZoneOffset().count();
   double end_time = WDateTime::currentDateTime().toTime_t() + timezone_offset;
-  double start_time = end_time - 12*60*60;
+  double start_time = end_time - 3*60*60;
   
   if( m_model->rowCount() )
   {
     end_time = m_model->maxDate();
-    start_time = end_time - 12*3600;
+    start_time = end_time - 3*3600;
     
     o2_xaxis.setZoomRange( start_time, end_time );
     hr_xaxis.setZoomRange( start_time, end_time );
@@ -773,16 +801,29 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
     hr_xaxis.setMaximum( end_time + 3600 );
   }//if( nrows )
   
+  m_duration_select->setCurrentIndex( DurationIndex::ThreeHours );
+  
   zoomRangeChangeCallback( start_time, end_time );
 }//OwletChart()
 
 
 void OwletChart::configCharts()
 {
+  const WColor chartBackgroundColor( "#ECEFF4" );
+  const WPen axispen( WColor("#2E3440") );
+  const WPen O2linepen( WColor("#5E81AC") );
+  const WPen hrlinepen( WColor("#8FBCBB") );
+  
+  
   m_oxygen_chart->setPlotAreaPadding( 10, Side::Top );
   m_heartrate_chart->setPlotAreaPadding( 10, Side::Top );
   m_oxygen_chart->setPlotAreaPadding( 50, Side::Left );
   m_heartrate_chart->setPlotAreaPadding( 50, Side::Left );
+  
+  
+  m_oxygen_chart->setAutoLayoutEnabled( true );
+  m_heartrate_chart->setAutoLayoutEnabled( true );
+  
   
   std::map<WFlags<KeyboardModifier>, Chart::InteractiveAction> wheelActions;
   wheelActions[KeyboardModifier::None] = Chart::InteractiveAction::PanX;
@@ -790,93 +831,101 @@ void OwletChart::configCharts()
   
   m_oxygen_chart->setWheelActions( wheelActions );
   m_heartrate_chart->setWheelActions( wheelActions );
-
   
   m_oxygen_chart->setModel( m_model );
   m_oxygen_chart->setXSeriesColumn(0);
   m_oxygen_chart->setType( Chart::ChartType::Scatter );
   m_oxygen_chart->setOnDemandLoadingEnabled( true );
   
-  m_oxygen_chart->setBackground(WColor("#ECEFF4"));
+  m_oxygen_chart->setBackground( chartBackgroundColor );
   
   m_heartrate_chart->setModel( m_model );
   m_heartrate_chart->setXSeriesColumn(0);
   m_heartrate_chart->setType( Chart::ChartType::Scatter );
   m_heartrate_chart->setOnDemandLoadingEnabled( true );
-  m_heartrate_chart->setBackground(WColor("#ECEFF4"));
+  m_heartrate_chart->setBackground( chartBackgroundColor );
   
   
   Chart::WAxis &o2_xaxis = m_oxygen_chart->axis(Wt::Chart::Axis::X);
+  Chart::WAxis &hr_xaxis = m_heartrate_chart->axis(Wt::Chart::Axis::X);
+  Chart::WAxis &o2_yaxis = m_oxygen_chart->axis(Wt::Chart::Axis::Y1);
+  Chart::WAxis &hr_yaxis = m_heartrate_chart->axis(Wt::Chart::Axis::Y1);
+  
   o2_xaxis.setScale(Chart::AxisScale::Date);
   o2_xaxis.setMinimumZoomRange(  15*60 );
   o2_xaxis.setMaximumZoomRange( 28*24*3600 );
   o2_xaxis.setScale( Chart::AxisScale::DateTime );
   
-  Chart::WAxis &hr_xaxis = m_heartrate_chart->axis(Wt::Chart::Axis::X);
   hr_xaxis.setScale(Chart::AxisScale::Date);
   hr_xaxis.setMinimumZoomRange(  15*60 );
   hr_xaxis.setMaximumZoomRange( 28*24*3600 );
   hr_xaxis.setScale( Chart::AxisScale::DateTime );
+    
+  
+  o2_yaxis.setTextPen( axispen );
+  o2_xaxis.setTextPen( axispen );
+  
+  o2_xaxis.setPen( axispen );
+  o2_xaxis.setTextPen( axispen );
+  o2_yaxis.setPen( axispen );
+  o2_yaxis.setTextPen( axispen );
+  
+  hr_xaxis.setPen( axispen );
+  hr_xaxis.setTextPen( axispen );
+  hr_yaxis.setPen( axispen );     //hrlinepen
+  hr_yaxis.setTextPen( axispen ); //hrlinepen
+  
+  m_oxygen_chart->setTextPen( axispen );
+  m_heartrate_chart->setTextPen( axispen );
   
   
   // Enable pan and zoom
-  m_oxygen_chart->setPanEnabled(true);
-  m_oxygen_chart->setZoomEnabled(true);
-  //m_oxygen_chart->setRubberBandEffectEnabled( true );
-  m_oxygen_chart->setCrosshairEnabled( false );
-  //m_oxygen_chart->setFollowCurve( 1 );
+  m_oxygen_chart->setPanEnabled( true );
+  m_oxygen_chart->setZoomEnabled( true );
+  m_oxygen_chart->setRubberBandEffectEnabled( true );
   
   // Enable pan and zoom
-  m_heartrate_chart->setPanEnabled(true);
-  m_heartrate_chart->setZoomEnabled(true);
+  m_heartrate_chart->setPanEnabled( true );
+  m_heartrate_chart->setZoomEnabled( true );
   m_heartrate_chart->setRubberBandEffectEnabled( true );
-  m_heartrate_chart->setCrosshairEnabled( false );
-  m_heartrate_chart->setFollowCurve( 1 );
   
-
-  WPen axispen( WColor("#2E3440") );
-  m_oxygen_chart->axis(Chart::Axis::X).setPen( axispen );
-  m_oxygen_chart->axis(Chart::Axis::Y1).setPen( axispen );
-  m_oxygen_chart->axis(Chart::Axis::Y1).setTextPen( axispen );
-  
-  m_heartrate_chart->axis(Chart::Axis::X).setPen( axispen );
-  m_heartrate_chart->axis(Chart::Axis::Y1).setPen( axispen );
-  m_heartrate_chart->axis(Chart::Axis::Y1).setTextPen( axispen );
-
-  
-  
-  WPen O2linepen( WColor("#5E81AC") );
   auto o2series = cpp14::make_unique<Chart::WDataSeries>(1, Chart::SeriesType::Line, Chart::Axis::Y1 );
   o2series->setPen( O2linepen );
   m_oxygen_chart->addSeries( std::move(o2series) );
   
-  auto &o2_yaxis = m_oxygen_chart->axis(Wt::Chart::Axis::Y1);
+  
   o2_yaxis.setRange( 90, 101 );
   o2_yaxis.setLabelInterval( 1 );
   o2_yaxis.setTitle( "Oxygen Saturation (%)" );
   o2_yaxis.setTitleOrientation(Orientation::Vertical);
-  o2_yaxis.setTextPen( O2linepen );
   o2_yaxis.setVisible( true );
   
-  
-  
   auto hrseries = cpp14::make_unique<Chart::WDataSeries>(2, Chart::SeriesType::Line, Chart::Axis::Y1 );
-  WPen hrlinepen( WColor("#8FBCBB") );
   hrseries->setPen( hrlinepen );
   m_heartrate_chart->addSeries( std::move(hrseries) );
   
-  auto &hryaxis = m_heartrate_chart->axis(Wt::Chart::Axis::Y1);
+
+  //hr_yaxis.setRange( 40, 220 );
+  //hr_yaxis.setLabelInterval( 20 );
+  hr_yaxis.setAutoLimits( Chart::AxisValue::Both );
+  hr_yaxis.setRoundLimits( Chart::AxisValue::Both );
   
+  hr_yaxis.setTitle( "Heart Rate (BPM)" );
+  hr_yaxis.setTitleOrientation(Orientation::Vertical);
+  hr_yaxis.setVisible( true );
   
-  //hryaxis.setRange( 40, 220 );
-  //hryaxis.setLabelInterval( 20 );
-  hryaxis.setAutoLimits( Chart::AxisValue::Both );
-  hryaxis.setRoundLimits( Chart::AxisValue::Both );
+  m_oxygen_chart->setSeriesSelectionEnabled();
+  m_heartrate_chart->setSeriesSelectionEnabled();
   
-  hryaxis.setTitle( "Heart Rate (BPM)" );
-  hryaxis.setTitleOrientation(Orientation::Vertical);
-  hryaxis.setTextPen( hrlinepen );
-  hryaxis.setVisible( true );
+  m_oxygen_chart->setCrosshairEnabled( false );
+  m_heartrate_chart->setCrosshairEnabled( false );
+  
+  //m_oxygen_chart->setFollowCurve( 1 );
+  //m_heartrate_chart->setFollowCurve( 2 );
+  
+  //It looks like in JS we could listen for somethign like
+  //  APP.emit(target.widget, "xTransformChanged");
+  //
 }//void configCharts()
 
 

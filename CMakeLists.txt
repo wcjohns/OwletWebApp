@@ -49,6 +49,7 @@ set_target_properties(OwletWebApp.wt PROPERTIES
 
 set( OTHER_SUPPORT_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+     ${CMAKE_CURRENT_SOURCE_DIR}/config/settings.ini
      ${CMAKE_CURRENT_SOURCE_DIR}/assets/css/OwletWebApp.css
      ${CMAKE_CURRENT_SOURCE_DIR}/config/wt_config.xml
   )

@@ -35,7 +35,7 @@ struct Alarmer
   /** How many seconds the (user) snooze lasts for. */
   int m_snooze_seconds;
   
-  /** Whether value must be above, or bellow #m_threshold for the alarming to start.   */
+  /** Whether value must be above, or below #m_threshold for the alarming to start.   */
   bool m_lessthan;
   
   /** Function to call to start the alarm.  Set by client. */

@@ -18,6 +18,11 @@
   margin-bottom: 8px;
 }
 
+.EnableRow
+{
+  
+}
+
 .AlarmValueLabel
 {
   display: inline-block;
@@ -132,3 +137,8 @@
   opacity: 0.25;
 }
 
+
+.FiveMinAvrgCb
+{
+  margin-left: 3px;
+}

@@ -71,10 +71,13 @@ Settings::Settings()
   : WContainerWidget(),
     m_fivemin_avrg( nullptr ),
     m_oxygen_limit( nullptr ),
+    m_second_oxygen_limit( nullptr ),
+    m_second_oxygen_disabled( nullptr ),
     m_oxygen_time_wait( nullptr ),
     m_low_heartrate_limit( nullptr ),
     m_hearrate_time_wait( nullptr ),
     m_high_heartrate_limit( nullptr ),
+    m_sock_off_disabled( nullptr ),
     m_sock_off_wait( nullptr )
 {
   addStyleClass( "Settings" );
@@ -82,6 +85,7 @@ Settings::Settings()
   
   OwletWebApp *app = dynamic_cast<OwletWebApp *>( WApplication::instance() );
   m_fivemin_avrg = addWidget( make_unique<WCheckBox>("Chart 5 Minute Averages") );
+  m_fivemin_avrg->addStyleClass( "FiveMinAvrgCb" );
   m_fivemin_avrg->setChecked( (app && app->isShowingFiveMinuteAvrg()) );
   m_fivemin_avrg->checked().connect( app, &OwletWebApp::showFiveMinuteAvrgData );
   m_fivemin_avrg->unChecked().connect( app, &OwletWebApp::showIndividualPointsData );
@@ -135,7 +139,53 @@ Settings::Settings()
     }
     OwletWebApp::alarm_thresholds_updated();
   });
-
+  
+  
+  auto second_oxygen_alarm_row = addWidget( make_unique<WGroupBox>("Second Oxygen Alarm") );
+  
+  row = second_oxygen_alarm_row->addWidget( make_unique<WContainerWidget>() );
+  row->addStyleClass( "EnableRow" );
+  m_second_oxygen_disabled = row->addWidget( make_unique<WCheckBox>("Disabled") );
+  const bool second_oxygen_enabled = OwletWebApp::sm_second_oxygen_alarm.enabled();
+  m_second_oxygen_disabled->setChecked( !second_oxygen_enabled );
+  
+  row = second_oxygen_alarm_row->addWidget( make_unique<WContainerWidget>() );
+  row->addStyleClass( "AlarmRow" );
+  
+  label = row->addWidget( make_unique<WLabel>("Lower Value") );
+  label->addStyleClass( "AlarmValueLabel" );
+  m_second_oxygen_limit = row->addWidget( make_unique<WSpinBox>() );
+  m_second_oxygen_limit->setRange( 80, 100 );
+  m_second_oxygen_limit->setSingleStep( 1 );
+  m_second_oxygen_limit->setInputMask( "99" );
+  m_second_oxygen_limit->setAttributeValue( "inputmode", "numeric");
+  m_second_oxygen_limit->setAttributeValue( "pattern", "[0-9][0-9]");
+  //m_second_oxygen_limit->setSuffix( "%" );
+  label->setBuddy( m_second_oxygen_limit );
+  //m_second_oxygen_limit->setNativeControl( true );
+  m_second_oxygen_limit->valueChanged().connect( []( const int value ){
+    OwletWebApp::set_config_value( "SecondOxygenThreshold", value );
+    
+    {
+      std::unique_lock<std::mutex> lock( OwletWebApp::sm_second_oxygen_alarm.m_mutex );
+      OwletWebApp::sm_second_oxygen_alarm.m_threshold = value;
+    }
+    OwletWebApp::alarm_thresholds_updated();
+  });
+  
+  
+  row->setHidden( !second_oxygen_enabled );
+  m_second_oxygen_disabled->changed().connect( [this,row](){
+    const bool alarmDisabled = m_second_oxygen_disabled->isChecked();
+    row->setHidden( alarmDisabled );
+    OwletWebApp::sm_second_oxygen_alarm.set_enabled( !alarmDisabled );
+    OwletWebApp::set_config_value( "SecondOxygenDisabled", alarmDisabled );
+    OwletWebApp::alarm_thresholds_updated();
+  } );
+  
+  
+  
+  
   
   auto heart_row = addWidget( make_unique<WGroupBox>("Heartrate Alarm:") );
   row = heart_row->addWidget( make_unique<WContainerWidget>() );
@@ -203,11 +253,18 @@ Settings::Settings()
   
   auto sock_off_row = addWidget( make_unique<WGroupBox>("Sock Off Alarm") );
   row = sock_off_row->addWidget( make_unique<WContainerWidget>() );
+  row->addStyleClass( "EnableRow" );
+  m_sock_off_disabled = row->addWidget( make_unique<WCheckBox>("Disabled") );
+  const bool sock_off_enabled = OwletWebApp::sm_sock_off_alarm.enabled();
+  m_sock_off_disabled->setChecked( !sock_off_enabled );
+  
+  
+  row = sock_off_row->addWidget( make_unique<WContainerWidget>() );
   row->addStyleClass( "AlarmRow" );
   label = row->addWidget( make_unique<WLabel>("Time Allowed") );
   label->addStyleClass( "AlarmValueLabel" );
   m_sock_off_wait = row->addWidget( make_unique<WSpinBox>() );
-  m_sock_off_wait->setRange( -1, 2400 );
+  m_sock_off_wait->setRange( 0, 2400 );
   m_sock_off_wait->setSingleStep( 1 );
   //m_sock_off_wait->setSuffix( "s" );
   m_sock_off_wait->setAttributeValue( "inputmode", "numeric");
@@ -216,17 +273,27 @@ Settings::Settings()
   m_sock_off_wait->valueChanged().connect( []( const int value ){
     OwletWebApp::set_config_value( "SockOffSeconds", value );
     
-    OwletWebApp::sm_sock_off_alarm.set_enabled( (value>=0) );
-    if( value >= 0 )
     {
       std::unique_lock<std::mutex> lock( OwletWebApp::sm_heartrate_low_alarm.m_mutex );
       OwletWebApp::sm_sock_off_alarm.m_deviation_seconds = value;
     }
     OwletWebApp::alarm_thresholds_updated();
   });
-  WText *hint = sock_off_row->addWidget( make_unique<WText>("(-1 disables sock off alert)") );
-  hint->setInline( false );
-  hint->addStyleClass( "SockAlarmHint" );
+  
+  
+  row->setHidden( !sock_off_enabled );
+  m_sock_off_disabled->changed().connect( [this,row](){
+    const bool alarmDisabled = m_sock_off_disabled->isChecked();
+    row->setHidden( alarmDisabled );
+    OwletWebApp::sm_sock_off_alarm.set_enabled( !alarmDisabled );
+    OwletWebApp::set_config_value( "SockOffDisabled", alarmDisabled );
+    OwletWebApp::alarm_thresholds_updated();
+  } );
+  
+  
+  //WText *hint = sock_off_row->addWidget( make_unique<WText>("(-1 disables sock off alert)") );
+  //hint->setInline( false );
+  //hint->addStyleClass( "SockAlarmHint" );
   
 
   auto audio_row = addWidget( make_unique<WGroupBox>("Audio Level Check:") );
@@ -253,27 +320,41 @@ Settings::~Settings()
 
 void Settings::setThresholdsFromIniToGui()
 {
-  int OxygenThreshold, BelowOxygenThresholdSeconds, HeartRateLowerThreshold;
+  int OxygenThreshold, SecondOxygenThreshold, BelowOxygenThresholdSeconds, HeartRateLowerThreshold;
   int HeartRateUpperThreshold, HeartRateThresholdSeconds;
   int SockOffSeconds;
+  bool SecondOxygenDisabled, SockOffDisabled;
   //int SnoozeSeconds;
   
   {//begin lock on sm_ini_mutex
     std::unique_lock<std::mutex> lock( OwletWebApp::sm_ini_mutex );
     //SnoozeSeconds = sm_ini.get<int>("SnoozeSeconds");
     OxygenThreshold = OwletWebApp::sm_ini.get<int>("OxygenThreshold");
+    SecondOxygenThreshold = OwletWebApp::sm_ini.get<int>("SecondOxygenThreshold");
     BelowOxygenThresholdSeconds = OwletWebApp::sm_ini.get<int>("BelowOxygenThresholdSeconds");
+    SecondOxygenDisabled = OwletWebApp::sm_ini.get<bool>("SecondOxygenDisabled");
     HeartRateLowerThreshold = OwletWebApp::sm_ini.get<int>("HeartRateLowerThreshold");
     HeartRateUpperThreshold = OwletWebApp::sm_ini.get<int>("HeartRateUpperThreshold");
     HeartRateThresholdSeconds = OwletWebApp::sm_ini.get<int>("HeartRateThresholdSeconds");
     SockOffSeconds = OwletWebApp::sm_ini.get<int>("SockOffSeconds");
+    SockOffDisabled = OwletWebApp::sm_ini.get<bool>("SockOffDisabled");
   }//end lock on sm_ini_mutex
   
   //Now set widgets...
   m_oxygen_limit->setValue( OxygenThreshold );
+  m_second_oxygen_limit->setValue( SecondOxygenThreshold );
   m_oxygen_time_wait->setValue( BelowOxygenThresholdSeconds );
   m_low_heartrate_limit->setValue( HeartRateLowerThreshold );
   m_high_heartrate_limit->setValue( HeartRateUpperThreshold );
   m_hearrate_time_wait->setValue( HeartRateThresholdSeconds );
   m_sock_off_wait->setValue( SockOffSeconds );
+  
+  
+  m_second_oxygen_disabled->setChecked( SecondOxygenDisabled );
+  if( m_second_oxygen_limit->parent() )
+    m_second_oxygen_limit->parent()->setHidden( SecondOxygenDisabled );
+    
+  m_sock_off_disabled->setChecked( SockOffDisabled );
+  if( m_sock_off_wait->parent() )
+    m_sock_off_wait->parent()->setHidden( SockOffDisabled );
 }//setThresholdsFromIniToGui()

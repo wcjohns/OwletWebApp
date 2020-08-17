@@ -161,7 +161,7 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
     {
       if( !m_deviation_start_time.isValid() )
       {
-        cerr << "First bellow threshold is at " << datetime.toString("yyyy-MM-dd hh:mm:ss").toUTF8()
+        cerr << "First below threshold is at " << datetime.toString("yyyy-MM-dd hh:mm:ss").toUTF8()
         //<< " (local " << datetime.toLocalTime().toString("yyyy-MM-dd hh:mm:ss").toUTF8() << ")"
         << endl;
         m_deviation_start_time = datetime;
@@ -191,7 +191,7 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
         assert( server );
         WIOService &service = server->ioService();
         m_alarm_wait_timer = std::make_unique<AsioWrapper::asio::steady_timer>( service );
-        m_alarm_wait_timer->expires_after( std::chrono::seconds(m_deviation_seconds) );
+        m_alarm_wait_timer->expires_after( std::chrono::seconds(std::max(m_deviation_seconds,0)) );
         m_alarm_wait_timer->async_wait( [this]( AsioWrapper::error_code ec ){
           if( ec )
             return;
@@ -222,7 +222,7 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
   {
     if( m_deviation_start_time.isValid()  )
     {
-      cerr << "Oxygen above threshold, so will clear bellow threshold start" << endl;
+      cerr << "Oxygen above threshold, so will clear below threshold start" << endl;
       m_deviation_start_time = WDateTime();
     }
     
@@ -236,7 +236,7 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
     
     if( m_snooze_timer )
     {
-      /// \TODO: If there is one reading above threshold while snoozing, then the bellow
+      /// \TODO: If there is one reading above threshold while snoozing, then the below
       ///        oxygen timer will kick in, leading to a possibly sooner alarm than the snooze would do - should fix this
       cerr << "Canceling snooze-timer for low oxygen" << endl;
       boost::system::error_code ec;
@@ -254,7 +254,7 @@ void Alarmer::processData( const WDateTime &datetime, const int value, const boo
       assert( server );
       server->ioService().post( m_stop_alarm );
     }//if( sm_below_oxygen_alarm_notified )
-  }//if( O2 bellow threshold ) / else
+  }//if( O2 below threshold ) / else
 }//void processData( const WDateTime &datetime, const int value )
 
 

@@ -49,16 +49,19 @@ public:
   
   
   void startOxygenAlarm();
+  void startSecondOxygenAlarm();
   void startLowHeartRateAlarm();
   void startHighHeartRateAlarm();
   void startSockOffAlarm();
   
   void snoozeOxygenAlarm();
+  void snoozeSecondOxygenAlarm();
   void snoozeLowHeartRateAlarm();
   void snoozeHighHeartRateAlarm();
   void snoozeSockOffAlarm();
   
   void oxygenAlarmEnded();
+  void secondOxygenAlarmEnded();
   void lowHeartRateAlarmEnded();
   void highHeartRateAlarmEnded();
   void sockOffAlarmEnded();
@@ -74,7 +77,12 @@ public:
   
   static void start_oxygen_alarms();
   
+  static void start_second_oxygen_alarms();
+  
   static void end_oxygen_alarms();
+  
+  static void end_second_oxygen_alarms();
+  
   
   static void start_low_heartrate_alarms();
   
@@ -94,6 +102,7 @@ public:
   void doInitialAlarming();
   
   void oxygenSnoozed();
+  void secondOxygenSnoozed();
   void lowHeartrateSnoozed();
   void highHeartrateSnoozed();
   void sockOffSnoozed();
@@ -139,6 +148,7 @@ private:
   Wt::WText *m_current_heartrate;
 
   Wt::WMessageBox *m_oxygen_mb;
+  Wt::WMessageBox *m_second_oxygen_mb;
   Wt::WMessageBox *m_low_heartrate_mb;
   Wt::WMessageBox *m_high_heartrate_mb;
   Wt::WMessageBox *m_sock_off_mb;
@@ -154,6 +164,7 @@ public:
   static boost::property_tree::ptree sm_ini;
   
   static Alarmer sm_oxygen_alarm;
+  static Alarmer sm_second_oxygen_alarm;
   static Alarmer sm_heartrate_low_alarm;
   static Alarmer sm_heartrate_high_alarm;
   static Alarmer sm_sock_off_alarm;
