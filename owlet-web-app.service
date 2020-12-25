@@ -7,8 +7,8 @@ Type=simple
 User=wcjohns
 Group=wcjohns
 WorkingDirectory=/path/to/OwletWebApp/
-ExecStart=/path/to/OwletWebApp/build/OwletWebApp.wt  --docroot . --http-address 0.0.0.0 --http-port 8080 -c config/wt_config.xml --accesslog=-
-Restart=on-failure
+ExecStart=/path/to/build/OwletWebApp.wt  --docroot . --http-address 0.0.0.0 --http-port 8080 -c config/wt_config.xml --accesslog=-
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

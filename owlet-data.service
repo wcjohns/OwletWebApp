@@ -6,9 +6,9 @@ After=multi-user.target
 Type=simple
 User=wcjohns
 Group=wcjohns
-WorkingDirectory=/path/to/your/install/owletpy/
-ExecStart=/usr/bin/python3 get_data.py [youreamil@example.com] [your-owlet-password]
-Restart=on-failure
+WorkingDirectory=/path/to/OwletWebApp/owletpy
+ExecStart=/usr/bin/python3 get_data.py youremail@example.com your-password
+Restart=always
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=network-online.target
