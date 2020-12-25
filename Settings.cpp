@@ -18,10 +18,13 @@ using namespace Wt;
 
 namespace
 {
+  WAnimation ns_animation( AnimationEffect::SlideInFromTop, TimingFunction::Linear, 250 );
+
   const std::string ns_resize_to_fit_on_screen_js = INLINE_JAVASCRIPT
   (
-   function(el)
+   function()
    {
+     let el = this;
      try
      {
        const ws = Wt.WT.windowSize();
@@ -58,8 +61,8 @@ SettingsDialog::SettingsDialog()
   show();
   
   
-  const string js = "var fcn = " + ns_resize_to_fit_on_screen_js + ";";
-  doJavaScript( js + string("setTimeout( function(){fcn(") + jsRef() + ");},50);" );
+  setJavaScriptMember( "fitOnScreen", ns_resize_to_fit_on_screen_js );
+  doJavaScript( "setTimeout( function(){ " + jsRef() + ".fitOnScreen();}, 50);" );
   
   
   Wt::WPushButton *ok = footer()->addWidget( std::make_unique<Wt::WPushButton>("Ok") );
@@ -81,7 +84,6 @@ Settings::Settings()
     m_sock_off_wait( nullptr )
 {
   addStyleClass( "Settings" );
-  
   
   OwletWebApp *app = dynamic_cast<OwletWebApp *>( WApplication::instance() );
   m_fivemin_avrg = addWidget( make_unique<WCheckBox>("Chart 5 Minute Averages") );
@@ -119,7 +121,7 @@ Settings::Settings()
   
   row = oxygen_alarm_row->addWidget( make_unique<WContainerWidget>() );
   row->addStyleClass( "AlarmRow" );
-  label = row->addWidget( make_unique<WLabel>("Delay Time") );
+  label = row->addWidget( make_unique<WLabel>("Delay Time (s)") );
   label->addStyleClass( "AlarmValueLabel" );
   m_oxygen_time_wait = row->addWidget( make_unique<WSpinBox>() );
   m_oxygen_time_wait->setRange( 0, 600 );
@@ -177,13 +179,17 @@ Settings::Settings()
   row->setHidden( !second_oxygen_enabled );
   m_second_oxygen_disabled->changed().connect( [this,row](){
     const bool alarmDisabled = m_second_oxygen_disabled->isChecked();
-    row->setHidden( alarmDisabled );
+    row->setHidden( alarmDisabled, ns_animation );
     OwletWebApp::sm_second_oxygen_alarm.set_enabled( !alarmDisabled );
     OwletWebApp::set_config_value( "SecondOxygenDisabled", alarmDisabled );
     OwletWebApp::alarm_thresholds_updated();
+    doJavaScript( "setTimeout( function(){ " + jsRef() + ".fitOnScreen();}, 10);" );
   } );
   
   
+  WText *hint = second_oxygen_alarm_row->addWidget( make_unique<WText>("This alarm is for immediate ultra-low alarms") );
+  hint->setInline( false );
+  hint->addStyleClass( "SockAlarmHint" );
   
   
   
@@ -231,7 +237,7 @@ Settings::Settings()
   row = heart_row->addWidget( make_unique<WContainerWidget>() );
   row->addStyleClass( "AlarmRow" );
   
-  label = row->addWidget( make_unique<WLabel>("Delay Time") );
+  label = row->addWidget( make_unique<WLabel>("Delay Time (s)") );
   label->addStyleClass( "AlarmValueLabel" );
   
   m_hearrate_time_wait = row->addWidget( make_unique<WSpinBox>() );
@@ -284,14 +290,16 @@ Settings::Settings()
   row->setHidden( !sock_off_enabled );
   m_sock_off_disabled->changed().connect( [this,row](){
     const bool alarmDisabled = m_sock_off_disabled->isChecked();
-    row->setHidden( alarmDisabled );
+    
+    row->setHidden( alarmDisabled, ns_animation );
     OwletWebApp::sm_sock_off_alarm.set_enabled( !alarmDisabled );
     OwletWebApp::set_config_value( "SockOffDisabled", alarmDisabled );
     OwletWebApp::alarm_thresholds_updated();
+    doJavaScript( "setTimeout( function(){ " + jsRef() + ".fitOnScreen();}, 10);" );
   } );
   
   
-  //WText *hint = sock_off_row->addWidget( make_unique<WText>("(-1 disables sock off alert)") );
+  //hint = sock_off_row->addWidget( make_unique<WText>("(-1 disables sock off alert)") );
   //hint->setInline( false );
   //hint->addStyleClass( "SockAlarmHint" );
   
@@ -352,9 +360,9 @@ void Settings::setThresholdsFromIniToGui()
   
   m_second_oxygen_disabled->setChecked( SecondOxygenDisabled );
   if( m_second_oxygen_limit->parent() )
-    m_second_oxygen_limit->parent()->setHidden( SecondOxygenDisabled );
+    m_second_oxygen_limit->parent()->setHidden( SecondOxygenDisabled ); //ns_animation will cause a double animation
     
   m_sock_off_disabled->setChecked( SockOffDisabled );
   if( m_sock_off_wait->parent() )
-    m_sock_off_wait->parent()->setHidden( SockOffDisabled );
+    m_sock_off_wait->parent()->setHidden( SockOffDisabled ); //ns_animation will cause a double animation
 }//setThresholdsFromIniToGui()

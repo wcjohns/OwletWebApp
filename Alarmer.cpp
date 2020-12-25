@@ -105,7 +105,25 @@ void Alarmer::snooze_alarm()
 {
   std::unique_lock<std::mutex> lock( m_mutex );
   
-  assert( !m_snooze_timer );
+  if( m_snooze_timer )
+  {
+    cerr << "Alarmer::snooze_alarm(): We already have a snooze timer set - we shouldnt have gotten"
+         << " here!." << endl;
+    try
+    {
+      const auto expiry = m_snooze_timer->expiry();
+      const auto now = Wt::AsioWrapper::asio::steady_timer::clock_type::now();
+    
+      cerr << "\tSnooze timer set to expire at "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(expiry - now).count()
+           << " milliseconds from now." <<  endl;
+    }catch( std::exception &e )
+    {
+      cerr << "Caught exception trying to get expiry time of snooze timer: " << e.what() << endl;
+    }
+    
+    return;
+  }//if( m_snooze_timer )
     
   if( !m_deviation_start_time.isValid() )
   {

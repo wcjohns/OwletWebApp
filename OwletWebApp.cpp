@@ -142,7 +142,7 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   //if( sm_oxygen_alarm.currently_alarming() )
   //  startOxygenAlarm();
   //else
-    if( sm_oxygen_alarm.currently_snoozed() )
+  if( sm_oxygen_alarm.currently_snoozed() )
     snoozeOxygenAlarm();
   
   if( sm_second_oxygen_alarm.currently_snoozed() )
@@ -409,8 +409,8 @@ void OwletWebApp::updateStatusToClient( const DbStatus status )
     txt += string(txt.empty() ? "" : ",&nbsp;") + "Sock Discon.";
   if( status.battery < 25 )
     txt += string(txt.empty() ? "" : ",&nbsp;") + "Batt. " + to_string(status.battery) +"%";
-  if( txt.empty() )
-    txt = "Normal";
+  //if( txt.empty() )
+  //  txt = "Normal";
     
   const WDateTime datetime = utcDateTimeFromStr(status.utc_date);
 
@@ -426,7 +426,7 @@ void OwletWebApp::updateStatusToClient( const DbStatus status )
 
 void OwletWebApp::startOxygenAlarm()
 {
-  if( m_oxygen_mb )
+  if( m_oxygen_mb || m_second_oxygen_mb )
   {
     cerr << "Already alarming for oxygen" << endl;
     return;
@@ -457,6 +457,7 @@ void OwletWebApp::startOxygenAlarm()
 
   /// \TODO: put this JS all in a function, instead of repeating it for every alarm call!
   string js =
+  "var myfcn = function(){"
   "let playPromise = " + audio->jsRef() + ".play();"
   "if (playPromise !== undefined) {"
   "  playPromise.then(() => {"
@@ -468,7 +469,8 @@ void OwletWebApp::startOxygenAlarm()
   "  });"
   "}else{"
   //  + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();";
   audio->doJavaScript( js );
   
   m_oxygen_mb->setModal( true );
@@ -494,7 +496,8 @@ void OwletWebApp::oxygenAlarmEnded()
   
   // \TODO: clear status text or colors or whatever
   
-  m_oxygen_disp->removeStyleClass( "Alarming" );
+  if( !sm_second_oxygen_alarm.currently_snoozed() && !sm_second_oxygen_alarm.currently_alarming() )
+    m_oxygen_disp->removeStyleClass( "Alarming" );
 }//void oxygenAlarmEnded()
 
 
@@ -506,8 +509,12 @@ void OwletWebApp::snoozeOxygenAlarm()
   {
     m_oxygen_mb->accept();
     m_oxygen_mb->removeFromParent();
+  
+    m_oxygen_mb = nullptr;
+    if( m_second_oxygen_mb )
+      snoozeSecondOxygenAlarm();
   }
-  m_oxygen_mb = nullptr;
+  
   
   /// \TODO: display some status text or change some colors or whatever
 }//snoozeOxygenAlarm()
@@ -515,7 +522,7 @@ void OwletWebApp::snoozeOxygenAlarm()
 
 void OwletWebApp::startSecondOxygenAlarm()
 {
-  if( m_second_oxygen_mb )
+  if( m_second_oxygen_mb || m_oxygen_mb )
   {
     cerr << "Already alarming for oxygen" << endl;
     return;
@@ -523,7 +530,7 @@ void OwletWebApp::startSecondOxygenAlarm()
   
   m_second_oxygen_mb = root()->addChild(make_unique<WMessageBox>(
                   "Low Oxygen Saturation",
-                  "<p>Oxygen level is below threshold.</p>",
+                  "<p>Oxygen level is below secondary threshold.</p>",
                    Icon::Critical, StandardButton::None ) );
 
   WPushButton *btn = m_second_oxygen_mb->addButton( "Dismiss", StandardButton::Ok );
@@ -546,6 +553,7 @@ void OwletWebApp::startSecondOxygenAlarm()
 
   /// \TODO: put this JS all in a function, instead of repeating it for every alarm call!
   string js =
+  "var myfcn = function(){"
   "let playPromise = " + audio->jsRef() + ".play();"
   "if (playPromise !== undefined) {"
   "  playPromise.then(() => {"
@@ -557,7 +565,9 @@ void OwletWebApp::startSecondOxygenAlarm()
   "  });"
   "}else{"
   //  + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();"
+  ;
   audio->doJavaScript( js );
   
   m_second_oxygen_mb->setModal( true );
@@ -583,7 +593,8 @@ void OwletWebApp::secondOxygenAlarmEnded()
   
   // \TODO: clear status text or colors or whatever
   
-  m_oxygen_disp->removeStyleClass( "Alarming" );
+  if( !sm_oxygen_alarm.currently_snoozed() && !sm_oxygen_alarm.currently_alarming() )
+    m_oxygen_disp->removeStyleClass( "Alarming" );
 }//void secondOxygenAlarmEnded()
 
 
@@ -594,8 +605,10 @@ void OwletWebApp::snoozeSecondOxygenAlarm()
   {
     m_second_oxygen_mb->accept();
     m_second_oxygen_mb->removeFromParent();
+    m_second_oxygen_mb = nullptr;
+    if( m_oxygen_mb )
+      snoozeOxygenAlarm();
   }
-  m_second_oxygen_mb = nullptr;
   
   /// \TODO: display some status text or change some colors or whatever
 }//snoozeSecondOxygenAlarm()
@@ -608,8 +621,8 @@ void OwletWebApp::snoozeLowHeartRateAlarm()
   {
     m_low_heartrate_mb->accept();
     m_low_heartrate_mb->removeFromParent();
+    m_low_heartrate_mb = nullptr;
   }
-  m_low_heartrate_mb = nullptr;
   
   /// \TODO: display some status text or change some colors or whatever
 }//snoozeLowHeartRateAlarm()
@@ -653,6 +666,7 @@ void OwletWebApp::startLowHeartRateAlarm()
   //audio->play();
   
   string js =
+  "var myfcn = function(){"
   "let playPromise = " + audio->jsRef() + ".play();"
   "if (playPromise !== undefined) {"
   "  playPromise.then(() => {"
@@ -664,7 +678,8 @@ void OwletWebApp::startLowHeartRateAlarm()
   "  });"
   "}else{"
   //  + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();";
   audio->doJavaScript( js );
   
   
@@ -716,6 +731,7 @@ void OwletWebApp::startHighHeartRateAlarm()
   //audio->play();
   
   string js =
+  "var myfcn = function(){"
   "let playPromise = " + audio->jsRef() + ".play();"
   "if (playPromise !== undefined) {"
   "  playPromise.then(() => {"
@@ -727,7 +743,8 @@ void OwletWebApp::startHighHeartRateAlarm()
   "  });"
   "}else{"
   //  + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();";
   audio->doJavaScript( js );
   
   
@@ -780,6 +797,7 @@ void OwletWebApp::startSockOffAlarm()
   //audio->play();
   
   string js =
+  "var myfcn = function(){"
   "let playPromise = " + audio->jsRef() + ".play();"
   "if (playPromise !== undefined) {"
   "  playPromise.then(() => {"
@@ -791,7 +809,8 @@ void OwletWebApp::startSockOffAlarm()
   "  });"
   "}else{"
   //  + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();";
   audio->doJavaScript( js );
   
   
@@ -861,6 +880,7 @@ void OwletWebApp::checkInitialAutoAudioPlay()
   m_auto_play_test = std::make_unique<Wt::JSignal<bool>>( this, "canplayaudio" );
   
   string js =
+  "var myfcn = function(){"
   "let startPlayPromise = " + audio->jsRef() + ".play();"
   "if (startPlayPromise !== undefined) {"
   "  startPlayPromise.then(() => {"
@@ -872,7 +892,9 @@ void OwletWebApp::checkInitialAutoAudioPlay()
   "  });"
   "}else{"
     + m_auto_play_test->createCall( {"false"} ) +
-  "}";
+  "}"
+  "}; myfcn();"
+  ;
   
   
   m_auto_play_test->connect( [this,audio]( const bool played ){
@@ -1064,6 +1086,9 @@ void OwletWebApp::stop_sock_off_alarms()
 void OwletWebApp::oxygenSnoozed()
 {
   sm_oxygen_alarm.snooze_alarm();
+  if( sm_second_oxygen_alarm.currently_alarming() )
+    sm_second_oxygen_alarm.snooze_alarm();
+  
   call_for_all( &OwletWebApp::snoozeOxygenAlarm );
 }//void oxygenSnoozed()
 
@@ -1110,6 +1135,7 @@ void OwletWebApp::processDataForAlarming( const vector<tuple<Wt::WDateTime,int,i
     const int heart = get<2>(val);
     
     sm_oxygen_alarm.processData( datetime, oxygen, last_data );
+    sm_second_oxygen_alarm.processData( datetime, oxygen, last_data );
     sm_heartrate_low_alarm.processData( datetime, heart, last_data );
     sm_heartrate_high_alarm.processData( datetime, heart, last_data );
   }//for( const auto &val : data )
@@ -1220,12 +1246,19 @@ void OwletWebApp::alarm_thresholds_updated()
   auto server = WServer::instance();
   assert( server );
   
-  int o2level = 0, hrlower = 0, hrupper = 0;
+  int o2level = 0, sec02level = 0, hrlower = 0, hrupper = 0;
 
   {
     std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_oxygen_alarm.m_mutex );
     o2level = OwletWebApp::sm_oxygen_alarm.m_threshold;
   }
+  
+  if( OwletWebApp::sm_second_oxygen_alarm.enabled() )
+  {
+    std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_second_oxygen_alarm.m_mutex );
+    sec02level = OwletWebApp::sm_second_oxygen_alarm.m_threshold;
+  }
+  
   
   {
     std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_heartrate_low_alarm.m_mutex );
@@ -1243,7 +1276,7 @@ void OwletWebApp::alarm_thresholds_updated()
     if( !app )
       return;
     
-    app->m_chart->oxygenAlarmLevelUpdated( o2level );
+    app->m_chart->oxygenAlarmLevelUpdated( o2level, sec02level );
     app->m_chart->heartRateAlarmLevelUpdated( hrlower, hrupper );
     
     app->triggerUpdate();
@@ -1334,7 +1367,7 @@ void OwletWebApp::init_globals()
   sm_sock_off_alarm.m_lessthan = true;
   sm_sock_off_alarm.m_start_alarm = [](){ OwletWebApp::start_sock_off_alarms(); };
   sm_sock_off_alarm.m_stop_alarm = [](){ OwletWebApp::stop_sock_off_alarms(); };
-  sm_sock_off_alarm.set_enabled( SockOffDisabled );
+  sm_sock_off_alarm.set_enabled( !SockOffDisabled );
 }//static void init_globals()
 
 

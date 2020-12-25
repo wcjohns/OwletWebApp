@@ -50,7 +50,7 @@ public:
   void showFiveMinuteAvrgData();
   void showIndividualPointsData();
   
-  void oxygenAlarmLevelUpdated( const int o2level );
+  void oxygenAlarmLevelUpdated( const int o2level, const int second02level );
   void heartRateAlarmLevelUpdated( const int hrlower, const int hrupper );
   
   virtual ~OwletChart();

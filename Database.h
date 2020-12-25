@@ -50,10 +50,10 @@ struct OwletReading
 //We will keep some data from the DB in memmory for when new sessions are
 //  started - memorry isnt an issue with this data, and its just easier for now
 extern std::mutex g_data_mutex;
-extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;
+extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_oxygen_values;  //each entry is 24 bytes.
 extern std::deque<std::tuple<Wt::WDateTime,int,bool>> g_heartrate_values;  //<time as string,value,moving>
-extern std::deque<OwletReading> g_readings;
-extern std::deque<DbStatus> g_statuses;
+extern std::deque<OwletReading> g_readings; //each entry is 32 bytes.
+extern std::deque<DbStatus> g_statuses;  //each entry is 72 bytes plus the allocated string for each of the two dates
 
 
 //  Each entry probably takes less than 50 bytes, so 200k entries is like 10 MB.

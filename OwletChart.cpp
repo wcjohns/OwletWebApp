@@ -544,9 +544,18 @@ public:
     
     if( column == 1 )
     {
-      std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_oxygen_alarm.m_mutex );
+      {
+        std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_oxygen_alarm.m_mutex );
+        ymin = OwletWebApp::sm_oxygen_alarm.m_threshold - 4;
+      }
       
-      ymin = OwletWebApp::sm_oxygen_alarm.m_threshold - 4;
+      if( OwletWebApp::sm_second_oxygen_alarm.enabled() )
+      {
+        std::lock_guard<mutex> alarm_lock( OwletWebApp::sm_second_oxygen_alarm.m_mutex );
+        double thresh = OwletWebApp::sm_second_oxygen_alarm.m_threshold;
+        if( thresh > 20 )
+          ymin = std::min( ymin, thresh );
+      }
       
       ymax = 101;
     }else if( column == 2 )
@@ -1256,9 +1265,10 @@ void OwletChart::setDateRange( const Wt::WDateTime &start, const Wt::WDateTime &
   zoomRangeChangeCallback( startTime, endTime );
 }//void setDateRange( const Wt::WDateTime &start, const Wt::WDateTime &end );
 
-void OwletChart::oxygenAlarmLevelUpdated( const int o2level )
+
+void OwletChart::oxygenAlarmLevelUpdated( const int o2level, const int second2level )
 {
-  m_oxygen_chart->setAlarmLevels( o2level, 0 );
+  m_oxygen_chart->setAlarmLevels( o2level, second2level );
 }
 
 

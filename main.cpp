@@ -75,8 +75,6 @@ int main(int argc, char **argv)
   //cout << "Done testing" << endl;
   //return 1;
   
-  //static void processDataForAlarming( const vector<tuple<string,int,int,int>> &data )
-  
   try
   {
     OwletWebApp::parse_ini();
