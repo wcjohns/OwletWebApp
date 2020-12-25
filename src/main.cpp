@@ -75,6 +75,29 @@ int main(int argc, char **argv)
   //cout << "Done testing" << endl;
   //return 1;
   
+  // If no command line options are given, fill in some defaults
+  //  Important! Note: we are binding to 0.0.0.0, which if your firewall allows, will make the
+  //  web-app available to any computer on your network.
+  vector<string> args;
+  vector<char *> local_argv;
+  if( argc == 1 )
+  {
+    cout << "Will use some default command line arguments" << endl;
+    args = { argv[0],
+      "--docroot", ".",
+      "--http-address", "0.0.0.0",
+      "--http-port", "8080",
+      "-c", "config/wt_config.xml",
+      "--accesslog=-"
+    };
+    
+    for( size_t i = 0; i < args.size(); ++i )
+      local_argv.push_back( &(args[i][0]) );
+    
+    argv = &(local_argv[0]);
+    argc = static_cast<int>( args.size() );
+  }//if( argc == 1 )
+  
   try
   {
     OwletWebApp::parse_ini();
@@ -87,7 +110,7 @@ int main(int argc, char **argv)
   OwletWebApp::init_globals();
   
   std::thread worker( &look_for_db_changes );
-    
+  
   int rcode = run_server(argc, argv, [](const Wt::WEnvironment &env) {
     return std::make_unique<OwletWebApp>(env);
   });

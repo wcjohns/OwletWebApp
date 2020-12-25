@@ -1,6 +1,6 @@
 project(OwletWebApp)
 
-# config with somethign like: cmake -DBOOST_ROOT=~/install/wt_4.3.1/ -DWt_INCLUDE_DIR=~/install/wt_4.3.1/include -G Xcode ..
+# config with somethign like: cmake -DCMAKE_PREFIX=~/install/wt_4.3.1/ -G Xcode ..
 
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 
@@ -10,18 +10,39 @@ endif("${CMAKE_SYSTEM}" MATCHES "Linux" )
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
+#set(Boost_USE_STATIC_RUNTIME ON)
 find_package(Boost 1.50 REQUIRED COMPONENTS program_options thread filesystem )
 
-
-add_executable( OwletWebApp.wt main.cpp Alarmer.h Alarmer.cpp OwletWebApp.h OwletWebApp.cpp
-                Database.h Database.cpp OwletChart.cpp OwletChart.h Settings.h Settings.cpp )
-
 find_library( LIBZ_LIBRARY z )
-include( cmake/FindWt.cmake )
+
+find_package( Wt REQUIRED Wt HTTP Dbo DboSqlite3 )
 
 
-target_link_libraries( OwletWebApp.wt PUBLIC ${Wt_LIBRARIES} Boost::program_options Boost::thread Boost::filesystem ${LIBZ_LIBRARY} )
+add_executable( OwletWebApp.wt
+  src/main.cpp
+  src/Alarmer.h
+  src/Alarmer.cpp
+  src/OwletWebApp.h
+  src/OwletWebApp.cpp
+  src/Database.h
+  src/Database.cpp
+  src/OwletChart.cpp
+  src/OwletChart.h
+  src/Settings.h
+  src/Settings.cpp
+)
+
+target_link_libraries( OwletWebApp.wt PUBLIC
+  # For some reason I cant get the proper way to link to Wt to work...
+  #Wt::Wt Wt::HTTP Wt::Dbo Wt::DboSqlite3
+  ${Wt_LIBRARY} ${Wt_HTTP_LIBRARY} ${Wt_DBO_LIBRARY} ${Wt_DBOSQLITE3_LIBRARY}
+  Boost::program_options
+  Boost::thread
+  Boost::filesystem
+  ${LIBZ_LIBRARY}
+)
+
+# Since linking to Wt::Wt, etc doesnt work, we need to manually specify Wt include dir
 target_include_directories( OwletWebApp.wt PUBLIC ${Wt_INCLUDE_DIR} )
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux" AND NOT ANDROID)
@@ -52,6 +73,14 @@ set( OTHER_SUPPORT_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/config/settings.ini
      ${CMAKE_CURRENT_SOURCE_DIR}/assets/css/OwletWebApp.css
      ${CMAKE_CURRENT_SOURCE_DIR}/config/wt_config.xml
-  )
+)
 
-  add_custom_target( OwletWebApp_resources SOURCES ${OTHER_SUPPORT_FILES} )
+add_custom_target( OwletWebApp_resources SOURCES ${OTHER_SUPPORT_FILES} )
+
+
+if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
+    set_target_properties(InterSpecExe PROPERTIES
+        XCODE_GENERATE_SCHEME TRUE
+        XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+endif( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )

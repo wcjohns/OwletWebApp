@@ -1,0 +1,14 @@
+[Unit]
+Description=Owlet Web App process
+After=multi-user.target
+
+[Service]
+Type=simple
+User=owlet
+Group=owlet
+WorkingDirectory=/usr/local/OwletWebApp/
+ExecStart=/usr/local/OwletWebApp/OwletWebApp.wt  --docroot . --http-address 0.0.0.0 --http-port 8080 -c config/wt_config.xml --accesslog=-
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

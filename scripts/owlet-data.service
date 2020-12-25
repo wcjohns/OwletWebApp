@@ -4,9 +4,9 @@ After=multi-user.target
 
 [Service]
 Type=simple
-User=wcjohns
-Group=wcjohns
-WorkingDirectory=/path/to/OwletWebApp/owletpy
+User=owlet
+Group=owlet
+WorkingDirectory=/usr/local/OwletWebApp/owletpy
 ExecStart=/usr/bin/python3 get_data.py youremail@example.com your-password
 Restart=always
 
