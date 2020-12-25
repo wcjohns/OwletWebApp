@@ -1,0 +1,14 @@
+[Unit]
+Description=Owlet Data Aquisition
+After=multi-user.target
+
+[Service]
+Type=simple
+User=wcjohns
+Group=wcjohns
+WorkingDirectory=/path/to/your/install/owletpy/
+ExecStart=/usr/bin/python3 get_data.py [youreamil@example.com] [your-owlet-password]
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
