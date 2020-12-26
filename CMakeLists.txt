@@ -94,16 +94,19 @@ if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
     )
 endif( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
 
+# We'll only define an install directory for Linux
+if("${CMAKE_SYSTEM}" MATCHES "Linux" )
+  # For the install, we will copy Wt's 'resources' folder into our 'assets' folder
+  get_target_property(WT_INCLUDES Wt::Wt INTERFACE_INCLUDE_DIRECTORIES)
 
-get_target_property(WT_INCLUDES Wt::Wt INTERFACE_INCLUDE_DIRECTORIES)
-# WT_INCLUDES could be a list, but in practice it looks to be a single directory, so we'll skip the loop
-find_path(
-    WT_RESOURCES_DIRECTORY
-    form.css
+  # WT_INCLUDES could be a list, but in practice it looks to be a single directory, so we'll skip the loop
+  find_path( WT_RESOURCES_DIRECTORY form.css
     ${WT_INCLUDES}/../share/Wt/resources
-)
+  )
 
-install( TARGETS OwletWebApp.wt RUNTIME DESTINATION "OwletWebApp")
-install( DIRECTORY config assets scripts owletpy DESTINATION "OwletWebApp" )
-install( DIRECTORY DESTINATION "OwletWebApp/data" )
-install( DIRECTORY "${WT_RESOURCES_DIRECTORY}" DESTINATION "OwletWebApp/assets/" )
+  install( TARGETS OwletWebApp.wt RUNTIME DESTINATION "OwletWebApp")
+  install( DIRECTORY config assets scripts owletpy DESTINATION "OwletWebApp" )
+  install( FILES LICENSE README.md DESTINATION "OwletWebApp/" )
+  install( DIRECTORY DESTINATION "OwletWebApp/data" )
+  install( DIRECTORY "${WT_RESOURCES_DIRECTORY}" DESTINATION "OwletWebApp/assets/" )
+endif("${CMAKE_SYSTEM}" MATCHES "Linux" )

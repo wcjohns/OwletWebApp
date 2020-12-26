@@ -76,7 +76,7 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   
   
   
-  WApplication::instance()->useStyleSheet( "assets/css/OwletWebApp.css" );
+  WApplication::instance()->useStyleSheet( "css/OwletWebApp.css" );
   
   root()->addStyleClass( "root" );
   
@@ -86,7 +86,7 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   int row = 0;
   auto header = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 0, 1, 2 );
   
-  auto settings = header->addWidget( std::make_unique<WImage>("assets/images/noun_Settings_3144389.svg", "Settings") );
+  auto settings = header->addWidget( std::make_unique<WImage>("images/noun_Settings_3144389.svg", "Settings") );
   settings->addStyleClass( "SettingsIcon" );
   settings->clicked().connect( [this](){
     if( !m_settings )
@@ -107,7 +107,7 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   m_oxygen_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 0, AlignmentFlag::Middle | AlignmentFlag::Center );
   m_oxygen_disp->addStyleClass( "CurrentOxygen" );
   
-  auto icon = m_oxygen_disp->addWidget( make_unique<WImage>( WLink("assets/images/noun_Lungs_2911021.svg") ) );
+  auto icon = m_oxygen_disp->addWidget( make_unique<WImage>( WLink("images/noun_Lungs_2911021.svg") ) );
   icon->setHeight( WLength(25,LengthUnit::Pixel) );
   icon->addStyleClass( "InfoIcon" );
   //auto label = m_oxygen_disp->addWidget( make_unique<WLabel>("Current Oxygen: ") );
@@ -120,7 +120,7 @@ OwletWebApp::OwletWebApp(const Wt::WEnvironment& env)
   m_heartrate_disp = m_layout->addWidget( std::make_unique<WContainerWidget>(), row, 1, AlignmentFlag::Middle | AlignmentFlag::Center );
   m_heartrate_disp->addStyleClass( "CurrentHeart" );
   
-  icon = m_heartrate_disp->addWidget( make_unique<WImage>( WLink("assets/images/noun_Heart_3432419.svg") ) );
+  icon = m_heartrate_disp->addWidget( make_unique<WImage>( WLink("images/noun_Heart_3432419.svg") ) );
   icon->setHeight( WLength(25,LengthUnit::Pixel) );
   icon->addStyleClass( "InfoIcon" );
   m_current_heartrate = m_heartrate_disp->addWidget( make_unique<WText>("--") );
@@ -442,7 +442,7 @@ void OwletWebApp::startOxygenAlarm()
 
 
   //auto audio = m_oxygen_mb->contents()->addWidget( make_unique<WMediaPlayer>(MediaType::Audio) );
-  //audio->addSource( MediaEncoding::MP3, "assets/audio/CheckOnAriMommy.mp3" );
+  //audio->addSource( MediaEncoding::MP3, "audio/CheckOnAriMommy.mp3" );
   ////WInteractWidget *repeat = audio->button(MediaPlayerButtonId::RepeatOn);
   //audio->play();
   
@@ -452,7 +452,7 @@ void OwletWebApp::startOxygenAlarm()
   //  so we cant dismiss the alarm.  So we will manulaly play the audio with JS using a promise.
   auto audio = m_oxygen_mb->contents()->addWidget( make_unique<WAudio>() );
   audio->setOptions( /* PlayerOption::Autoplay | */ PlayerOption::Loop );
-  audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
+  audio->addSource( "audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
 
   /// \TODO: put this JS all in a function, instead of repeating it for every alarm call!
@@ -538,7 +538,7 @@ void OwletWebApp::startSecondOxygenAlarm()
 
 
   //auto audio = m_second_oxygen_mb->contents()->addWidget( make_unique<WMediaPlayer>(MediaType::Audio) );
-  //audio->addSource( MediaEncoding::MP3, "assets/audio/CheckOnAriMommy.mp3" );
+  //audio->addSource( MediaEncoding::MP3, "audio/CheckOnAriMommy.mp3" );
   ////WInteractWidget *repeat = audio->button(MediaPlayerButtonId::RepeatOn);
   //audio->play();
   
@@ -548,7 +548,7 @@ void OwletWebApp::startSecondOxygenAlarm()
   //  so we cant dismiss the alarm.  So we will manulaly play the audio with JS using a promise.
   auto audio = m_second_oxygen_mb->contents()->addWidget( make_unique<WAudio>() );
   audio->setOptions( /* PlayerOption::Autoplay | */ PlayerOption::Loop );
-  audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
+  audio->addSource( "audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
 
   /// \TODO: put this JS all in a function, instead of repeating it for every alarm call!
@@ -660,7 +660,7 @@ void OwletWebApp::startLowHeartRateAlarm()
 
   //See notes from O2 alarm for why we play using JS
   auto audio = m_low_heartrate_mb->contents()->addWidget( make_unique<WAudio>() );
-  audio->addSource("assets/audio/CheckOnAriMommy.mp3");
+  audio->addSource("audio/CheckOnAriMommy.mp3");
   audio->setOptions( /* PlayerOption::Autoplay |*/ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
   //audio->play();
@@ -725,7 +725,7 @@ void OwletWebApp::startHighHeartRateAlarm()
 
   // See notes for O2 heartrate of why we play using JS
   auto audio = m_high_heartrate_mb->contents()->addWidget( make_unique<WAudio>() );
-  audio->addSource("assets/audio/CheckOnAriMommy.mp3");
+  audio->addSource("audio/CheckOnAriMommy.mp3");
   audio->setOptions( /* PlayerOption::Autoplay |*/ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
   //audio->play();
@@ -791,7 +791,7 @@ void OwletWebApp::startSockOffAlarm()
 
   // See notes for O2 alarm for why we play using JS
   auto audio = m_sock_off_mb->contents()->addWidget( make_unique<WAudio>() );
-  audio->addSource("assets/audio/CheckOnAriMommy.mp3");
+  audio->addSource("audio/CheckOnAriMommy.mp3");
   audio->setOptions( /* PlayerOption::Autoplay | */ PlayerOption::Loop ); //PlayerOption::Controls
   audio->setPreloadMode( MediaPreloadMode::Auto );
   //audio->play();
@@ -856,14 +856,14 @@ void OwletWebApp::checkInitialAutoAudioPlay()
 {
   // For some browsers apparently playing audio from an iframe will allow auto-playing of audio
   string iframe_js = "var iframe = document.createElement('iframe');"
-  "iframe.src = 'assets/audio/silence.mp3';"
+  "iframe.src = 'audio/silence.mp3';"
   "iframe.style.display = 'none';"
   "iframe.allow = 'autoplay';"
   "iframe.id = 'audio';"
   "document.body.appendChild(iframe);";
   doJavaScript( iframe_js );
   
-  //const char *iframetxt = "'<iframe src=\"assets/audio/250-milliseconds-of-silence.mp3\" allow=\"autoplay\" id=\"audio\" style=\"display: none\"></iframe>'";
+  //const char *iframetxt = "'<iframe src=\"audio/250-milliseconds-of-silence.mp3\" allow=\"autoplay\" id=\"audio\" style=\"display: none\"></iframe>'";
   //m_layout->addWidget( , m_layout->rowCount(), 0 );
   //domRoot()->addChild( make_unique<WText>(iframetxt,TextFormat::UnsafeXHTML) );
   
@@ -872,7 +872,7 @@ void OwletWebApp::checkInitialAutoAudioPlay()
   //  the audio can be auto-played.
   /// Well add the audio to a random element since we wont be showing controls anyway
   auto audio = m_oxygen_disp->addWidget( make_unique<WAudio>() );
-  audio->addSource( "assets/audio/silence.mp3" );
+  audio->addSource( "audio/silence.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
   audio->pause(); //force call to loadJavaScript();
   
@@ -948,7 +948,7 @@ void OwletWebApp::audioPlayPopup()
 
   auto audio = message->contents()->addWidget( make_unique<WAudio>() );
   audio->setOptions( PlayerOption::Controls ); //PlayerOption::Loop
-  audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
+  audio->addSource( "audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
   
   audio->ended().connect( [=](){

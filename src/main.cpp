@@ -84,7 +84,7 @@ int main(int argc, char **argv)
   {
     cout << "Will use some default command line arguments" << endl;
     args = { argv[0],
-      "--docroot", ".",
+      "--docroot", "./assets",
       "--http-address", "0.0.0.0",
       "--http-port", "8080",
       "-c", "config/wt_config.xml",

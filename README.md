@@ -52,7 +52,7 @@ make -j12 install
 
 ### Compiling this code
 ```bash
-git clone -R https://github.com/wcjohns/OwletWebApp.git
+git clone --recursive https://github.com/wcjohns/OwletWebApp.git
 cd OwletWebApp
 mkdir build
 cd build

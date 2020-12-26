@@ -7,7 +7,7 @@ Type=simple
 User=owlet
 Group=owlet
 WorkingDirectory=/usr/local/OwletWebApp/
-ExecStart=/usr/local/OwletWebApp/OwletWebApp.wt  --docroot . --http-address 0.0.0.0 --http-port 8080 -c config/wt_config.xml --accesslog=-
+ExecStart=/usr/local/OwletWebApp/OwletWebApp.wt --docroot /usr/local/OwletWebApp/assets/ --http-address 0.0.0.0 --http-port 8080 -c /usr/local/OwletWebApp/config/wt_config.xml --accesslog=-
 Restart=always
 
 [Install]

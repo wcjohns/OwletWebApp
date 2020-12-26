@@ -644,7 +644,7 @@
 
 	       The default value is 'resources/'
               -->
-	    <property name="resourcesURL">assets/resources/</property>
+	    <property name="resourcesURL">resources/</property>
 
 	    <!-- favicon property
 

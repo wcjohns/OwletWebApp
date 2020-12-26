@@ -312,7 +312,7 @@ Settings::Settings()
   auto audio = audio_row->addWidget( make_unique<WAudio>() );
   audio->setInline( false );
   audio->setOptions( PlayerOption::Controls ); //PlayerOption::Loop
-  audio->addSource( "assets/audio/CheckOnAriMommy.mp3" );
+  audio->addSource( "audio/CheckOnAriMommy.mp3" );
   audio->setPreloadMode( MediaPreloadMode::Auto );
   
   

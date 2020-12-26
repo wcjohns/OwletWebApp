@@ -723,10 +723,10 @@ OwletChart::OwletChart( const bool oxygen, const bool heartrate )
    
   configCharts();
   
-  auto prev = std::make_unique<WImage>("assets/images/noun_previous_1897876.svg", "Previous Time Range");
+  auto prev = std::make_unique<WImage>("images/noun_previous_1897876.svg", "Previous Time Range");
   prev->addStyleClass( "PrevTimeRange" );
   
-  auto next = std::make_unique<WImage>("assets/images/noun_Next_1897875.svg", "Next Time Range");
+  auto next = std::make_unique<WImage>("images/noun_Next_1897875.svg", "Next Time Range");
   next->addStyleClass( "NextTimeRange" );
   
   m_previous_range = layout->addWidget( std::move(prev), 2, 1, AlignmentFlag::Right );
