@@ -84,3 +84,8 @@ if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
         XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
 endif( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
+
+
+install( TARGETS OwletWebApp.wt RUNTIME DESTINATION "OwletWebApp")
+install( DIRECTORY config assets scripts owletpy DESTINATION "OwletWebApp" )
+install( DIRECTORY DESTINATION "OwletWebApp/data" )
