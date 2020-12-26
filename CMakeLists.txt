@@ -33,17 +33,20 @@ add_executable( OwletWebApp.wt
 )
 
 target_link_libraries( OwletWebApp.wt PUBLIC
-  # For some reason I cant get the proper way to link to Wt to work...
-  #Wt::Wt Wt::HTTP Wt::Dbo Wt::DboSqlite3
-  ${Wt_LIBRARY} ${Wt_HTTP_LIBRARY} ${Wt_DBO_LIBRARY} ${Wt_DBOSQLITE3_LIBRARY}
   Boost::program_options
   Boost::thread
   Boost::filesystem
   ${LIBZ_LIBRARY}
 )
 
-# Since linking to Wt::Wt, etc doesnt work, we need to manually specify Wt include dir
-target_include_directories( OwletWebApp.wt PUBLIC ${Wt_INCLUDE_DIR} )
+# For some reason I cant get the proper way to link to Wt to work on my macOS
+if( APPLE )
+  target_link_libraries( OwletWebApp.wt PUBLIC ${Wt_LIBRARY} ${Wt_HTTP_LIBRARY} ${Wt_DBO_LIBRARY} ${Wt_DBOSQLITE3_LIBRARY} )
+  target_include_directories( OwletWebApp.wt PUBLIC ${Wt_INCLUDE_DIR} )
+else( APPLE )
+  target_link_libraries( OwletWebApp.wt PUBLIC Wt::Wt Wt::HTTP Wt::Dbo Wt::DboSqlite3 )
+endif( APPLE )
+
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux" AND NOT ANDROID)
   find_library( RT_LIB rt )
@@ -53,6 +56,12 @@ if("${CMAKE_SYSTEM}" MATCHES "Linux" AND NOT ANDROID)
   
   target_link_libraries( OwletWebApp.wt PUBLIC ${RT_LIB} OpenSSL::SSL OpenSSL::Crypto ${CMAKE_DL_LIBS} -static-libgcc -static-libstdc++ )
 endif()
+
+
+if( CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" )
+  target_link_libraries( OwletWebApp.wt PUBLIC -latomic )
+endif( CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" )
+
 
 if(APPLE AND NOT IOS)
   target_link_libraries( OwletWebApp.wt PUBLIC
@@ -86,6 +95,15 @@ if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
 endif( ${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0" )
 
 
+get_target_property(WT_INCLUDES Wt::Wt INTERFACE_INCLUDE_DIRECTORIES)
+# WT_INCLUDES could be a list, but in practice it looks to be a single directory, so we'll skip the loop
+find_path(
+    WT_RESOURCES_DIRECTORY
+    form.css
+    ${WT_INCLUDES}/../share/Wt/resources
+)
+
 install( TARGETS OwletWebApp.wt RUNTIME DESTINATION "OwletWebApp")
 install( DIRECTORY config assets scripts owletpy DESTINATION "OwletWebApp" )
 install( DIRECTORY DESTINATION "OwletWebApp/data" )
+install( DIRECTORY "${WT_RESOURCES_DIRECTORY}" DESTINATION "OwletWebApp/assets/" )

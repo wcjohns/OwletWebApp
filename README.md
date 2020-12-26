@@ -15,8 +15,10 @@ This project uses code derived from [CAB426/owletpy](https://github.com/CAB426/o
 
 ## Screenshots
 ![iPhone Screenshot](docs/images/screenshot_iphone.png?raw=true "Screenshot on iPhone")
-
-![Settings Screenshot](add docs/images/screenshot_settings.png?raw=true "Some of the settings available")
+![iPhone Screenshot 2](docs/images/screenshot_iphone_2.png?raw=true "Screenshot on iPhone")
+![iPhone Screenshot 3](docs/images/screenshot_iphone_3.png?raw=true "Screenshot on iPhone")
+![Settings Screenshot](docs/images/screenshot_settings.png?raw=true "Some of the settings available")
+![Settings Screenshot 2](docs/images/screenshot_settings_2.png?raw=true "Settings available")
 
 
 ## Compiling and setting up OwletWebApp
@@ -32,13 +34,14 @@ To compile boost and Wt from source on macOS, first make sure you have Xcode ins
 export MY_WT_PREFIX=/path/to/install/prefix/macOS_wt4.5.0_prefix
 
 # Download boost, compile, and install
-curl https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.gz --output boost_1_75_0.tar.gz
+curl -L https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.gz --output boost_1_75_0.tar.gz
 tar -xzvf boost_1_75_0.tar.gz
 cd boost_1_75_0
+ ./bootstrap.sh
 ./b2 toolset=clang link=static variant=release threading=multi cxxflags="-std=c++11 -stdlib=libc++" linkflags="-std=c++11 -stdlib=libc++" --prefix=${MY_WT_PREFIX} -j12 install
 
 # Download Wt, compile, and install
-curl https://github.com/emweb/wt/archive/4.5.0.tar.gz --output wt-4.5.0.tar.gz
+curl -L https://github.com/emweb/wt/archive/4.5.0.tar.gz --output wt-4.5.0.tar.gz
 tar -xzvf wt-4.5.0.tar.gz
 cd wt-4.5.0
 mkdir build
@@ -49,6 +52,7 @@ make -j12 install
 
 ### Compiling this code
 ```bash
+git clone -R https://github.com/wcjohns/OwletWebApp.git
 cd OwletWebApp
 mkdir build
 cd build
@@ -66,8 +70,8 @@ usermod -a -G owlet $USER
 sudo cp owlet-data.service /lib/systemd/system/
 sudo cp owlet-web-app.service /lib/systemd/system/
 
-sudo chown owlet:owlet /lib/systemd/system/owlet-data.service
-sudo chown owlet:owlet /lib/systemd/system/owlet-web-app.service
+sudo chown root:root /lib/systemd/system/owlet-data.service
+sudo chown root:root /lib/systemd/system/owlet-web-app.service
 
 sudo chmod 644 /lib/systemd/system/owlet-data.service
 sudo chmod 644 /lib/systemd/system/owlet-web-app.service
