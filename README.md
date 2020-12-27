@@ -14,8 +14,8 @@ This project uses code derived from [CAB426/owletpy](https://github.com/CAB426/o
 
 
 ## Screenshots
-![iPhone Screenshot 3](docs/images/screenshot_iphone_3.png  | width=350 )
-![Settings Screenshot 2](docs/images/screenshot_settings_2.png | width=375 )
+<img src="docs/images/screenshot_iphone_3.png" width="256" height="350">
+<img src="docs/images/screenshot_settings_2.png" width="256" height="375">
 
 
 ## Compiling and setting up OwletWebApp
@@ -65,8 +65,8 @@ useradd -r -s /usr/bin/nologin owlet
 usermod -a -G owlet $USER
 
 # You need to edit your Owlet username and password in owlet-data.service
-sudo cp owlet-data.service /lib/systemd/system/
-sudo cp owlet-web-app.service /lib/systemd/system/
+sudo cp scripts/systemd/owlet-data.service /lib/systemd/system/
+sudo cp scripts/systemd/owlet-web-app.service /lib/systemd/system/
 
 sudo chown root:root /lib/systemd/system/owlet-data.service
 sudo chown root:root /lib/systemd/system/owlet-web-app.service
