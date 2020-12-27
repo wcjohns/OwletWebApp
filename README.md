@@ -14,11 +14,8 @@ This project uses code derived from [CAB426/owletpy](https://github.com/CAB426/o
 
 
 ## Screenshots
-![iPhone Screenshot](docs/images/screenshot_iphone.png?raw=true "Screenshot on iPhone")
-![iPhone Screenshot 2](docs/images/screenshot_iphone_2.png?raw=true "Screenshot on iPhone")
-![iPhone Screenshot 3](docs/images/screenshot_iphone_3.png?raw=true "Screenshot on iPhone")
-![Settings Screenshot](docs/images/screenshot_settings.png?raw=true "Some of the settings available")
-![Settings Screenshot 2](docs/images/screenshot_settings_2.png?raw=true "Settings available")
+![iPhone Screenshot 3](docs/images/screenshot_iphone_3.png  | width=350 )
+![Settings Screenshot 2](docs/images/screenshot_settings_2.png | width=375 )
 
 
 ## Compiling and setting up OwletWebApp
@@ -67,6 +64,7 @@ make -j12
 useradd -r -s /usr/bin/nologin owlet
 usermod -a -G owlet $USER
 
+# You need to edit your Owlet username and password in owlet-data.service
 sudo cp owlet-data.service /lib/systemd/system/
 sudo cp owlet-web-app.service /lib/systemd/system/
 
@@ -86,7 +84,6 @@ systemctl status owlet-data
 
 # Or to do some debugging
 sudo journalctl -f
-
 
 sudo reboot
 ...
